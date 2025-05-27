@@ -1,0 +1,35 @@
+@page "/"
+@page "/login"
+@inject NavigationManager NavigationManager
+@using BlazorTaskTracker.Components.Layout // Added to ensure MainLayout is accessible if needed directly, though not typical for pages
+
+<div class="login-container">
+    <div class="login-box">
+        <img src="https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png" alt="Google logo" class="google-logo" />
+        <h1>Sign in</h1>
+        <p>Use your Google Account</p>
+        <input type="text" @bind="username" placeholder="Email or phone" class="login-input" />
+        <input type="password" @bind="password" placeholder="Password" class="login-input" />
+        <div class="login-actions">
+            <button class="login-button" @onclick="HandleLogin">Login</button>
+        </div>
+        <p class="guest-mode-info">Not your computer? Use Guest mode to sign in privately. <a href="#">Learn more</a></p>
+    </div>
+</div>
+
+@code {
+    private string username;
+    private string password;
+
+    private void HandleLogin()
+    {
+        if (username == "test" && password == "test")
+        {
+            NavigationManager.NavigateTo("/helloworld");
+        }
+        else
+        {
+            Console.WriteLine("Invalid login attempt");
+        }
+    }
+}
