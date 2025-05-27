@@ -9,6 +9,12 @@
         <p>Enter your credentials to continue</p>
         <input type="text" @bind="username" placeholder="Username or Email" class="login-input" />
         <input type="password" @bind="password" placeholder="Password" class="login-input" />
+        
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <p class="error-message" style="color: red; margin-top: 10px;">@errorMessage</p>
+        }
+        
         <div class="login-actions">
             <button class="login-button" @onclick="HandleLogin">Login</button>
         </div>
@@ -18,17 +24,19 @@
 @code {
     private string username;
     private string password;
+    private string errorMessage;
 
     private void HandleLogin()
     {
         if (username == "test" && password == "test")
         {
+            errorMessage = null; // Clear error message
             NavigationManager.NavigateTo("/helloworld");
         }
         else
         {
-            // Consider adding a user-visible error message here
-            Console.WriteLine("Invalid login attempt");
+            errorMessage = "Invalid username or password. Please try again.";
+            Console.WriteLine("Invalid login attempt: " + errorMessage); // Keep console log
         }
     }
 }
