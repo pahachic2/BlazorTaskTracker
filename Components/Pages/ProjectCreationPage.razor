@@ -1,0 +1,57 @@
+@page "/projects"
+@inject NavigationManager NavigationManager
+
+<div class="project-page-container">
+    <header class="project-page-header">
+        <h1>My Projects</h1>
+    </header>
+
+    <section class="project-creation-section">
+        <h2>Create a new project</h2>
+        <div class="project-input-group">
+            <input type="text" @bind="newProjectName" placeholder="Enter project name" class="project-name-input" />
+            <button class="create-project-button" @onclick="CreateNewProject">Create Project</button>
+        </div>
+    </section>
+
+    <section class="project-list-section">
+        <h2>Existing Projects</h2>
+        @if (projects != null && projects.Any())
+        {
+            <ul class="project-list">
+                @foreach (var project in projects)
+                {
+                    <li class="project-list-item">@project</li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>No projects created yet. Start by creating one above!</p>
+        }
+    </section>
+</div>
+
+@code {
+    private string newProjectName;
+    private List<string> projects = new List<string>();
+
+    private void CreateNewProject()
+    {
+        if (!string.IsNullOrWhiteSpace(newProjectName))
+        {
+            if (!projects.Contains(newProjectName.Trim())) // Optional: Prevent duplicate project names
+            {
+                projects.Add(newProjectName.Trim());
+                Console.WriteLine($"Project created: {newProjectName.Trim()}");
+            }
+            else
+            {
+                Console.WriteLine($"Project already exists: {newProjectName.Trim()}");
+                // Optionally, set an error message to display to the user here
+            }
+            newProjectName = string.Empty; // Clear the input field
+            StateHasChanged(); // Notify Blazor that the UI needs to be updated
+        }
+    }
+}

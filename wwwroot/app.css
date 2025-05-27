@@ -118,3 +118,112 @@ html, body {
     right: 0.75rem;
     top: 0.5rem;
 }
+
+/* Project Creation Page Styles */
+.project-page-container {
+    width: 100%;
+    max-width: 900px; /* Max width for the projects page content */
+    margin: 0 auto; /* Center the content */
+    padding: 20px;
+    box-sizing: border-box;
+    text-align: left; /* Override centered text from body if it was global */
+    height: 100vh; /* Make it take full viewport height */
+    display: flex;
+    flex-direction: column;
+}
+
+.project-page-header {
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 20px;
+}
+
+.project-page-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1c1e21;
+    margin: 0;
+}
+
+.project-creation-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f9f9f9; /* Light background for this section */
+    border-radius: 8px;
+}
+
+.project-creation-section h2 {
+    font-size: 20px;
+    font-weight: 500;
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.project-input-group {
+    display: flex;
+    gap: 10px; /* Space between input and button */
+    align-items: center;
+}
+
+.project-name-input {
+    flex-grow: 1; /* Input takes available space */
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.create-project-button {
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #fff;
+    background-color: #007bff; /* Same blue as login */
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.create-project-button:hover {
+    background-color: #0056b3;
+}
+
+.project-list-section {
+    flex-grow: 1; /* Takes remaining vertical space */
+}
+
+.project-list-section h2 {
+    font-size: 20px;
+    font-weight: 500;
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.project-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid; /* Use grid for a Trello-like card layout */
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Responsive columns */
+    gap: 20px;
+}
+
+.project-list-item {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #e0e0e0;
+    font-size: 18px;
+    color: #333;
+}
+
+/* Ensure body/html doesn't force center text on this page if not desired */
+/* This might conflict if login page is still expected to be fully centered.
+   A better approach might be to scope text-align to login-container.
+   For now, assuming .project-page-container text-align:left is enough.
+*/
