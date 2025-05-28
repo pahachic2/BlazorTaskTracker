@@ -37,7 +37,12 @@ window.kanbanDragDrop = {
         taskElement._dragStartHandler = function (e) {
             console.log(`🚀 JS: DRAGSTART - Начало перетаскивания задачи: ${taskId}`);
             kanbanDragDrop.draggedTaskId = taskId;
-            kanbanDragDrop.draggedFromColumnId = columnId;
+            const currentColumn = e.target.closest('.kanban-column');
+            if (currentColumn) {
+                kanbanDragDrop.draggedFromColumnId = currentColumn.id.replace('column-', '');
+            } else {
+                kanbanDragDrop.draggedFromColumnId = columnId;
+            }
             
             // Добавляем стили для перетаскиваемого элемента
             e.target.style.opacity = '0.5';
@@ -135,6 +140,10 @@ window.kanbanDragDrop = {
                             kanbanDragDrop.draggedFromColumnId, 
                             columnId);
                         console.log(`✅ JS: Blazor метод вызван успешно`);
+                        
+                        setTimeout(() => {
+                            kanbanDragDrop.updateTaskColumnId(kanbanDragDrop.draggedTaskId, columnId);
+                        }, 100);
                     } else {
                         console.log(`⚠️ JS: dotNetRef недоступен, используем fallback`);
                         // Fallback: просто перемещаем элемент в DOM
@@ -161,6 +170,16 @@ window.kanbanDragDrop = {
         console.log(`✅ JS: Drop zone настроен для колонки: ${columnId}`);
     },
 
+    // НОВЫЙ МЕТОД: Обновление data-column-id атрибута задачи
+    updateTaskColumnId: function(taskId, newColumnId) {
+        console.log(`🔄 JS: Обновление data-column-id для задачи ${taskId} на ${newColumnId}`);
+        const taskElement = document.getElementById(`task-${taskId}`);
+        if (taskElement) {
+            taskElement.setAttribute('data-column-id', newColumnId);
+            console.log(`✅ JS: Атрибут data-column-id обновлен для задачи ${taskId}`);
+        }
+    },
+
     // Fallback метод для перемещения задач в DOM
     moveTaskInDOM: function(taskId, fromColumnId, toColumnId) {
         console.log(`🔄 JS: Fallback перемещение задачи ${taskId} из ${fromColumnId} в ${toColumnId}`);
@@ -172,6 +191,7 @@ window.kanbanDragDrop = {
             const taskList = targetColumn.querySelector('.space-y-3');
             if (taskList) {
                 taskList.appendChild(taskElement);
+                kanbanDragDrop.updateTaskColumnId(taskId, toColumnId);
                 console.log(`✅ JS: Задача перемещена в DOM`);
             }
         }

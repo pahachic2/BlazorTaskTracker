@@ -255,6 +255,18 @@
         await OnTaskMoved.InvokeAsync(args);
         StateHasChanged(); // Ensure UI updates
         
+        // ИСПРАВЛЕНИЕ: Переинициализируем drag-and-drop для перемещенной задачи с новым columnId
+        try
+        {
+            await Task.Delay(200); // Даем время UI обновиться
+            await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initTaskDragDrop", $"task-{taskId}", taskId, toColumnId);
+            Console.WriteLine($"🔄 BLAZOR: Переинициализирован drag-and-drop для задачи {taskId} в колонке {toColumnId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ BLAZOR: Ошибка переинициализации drag-and-drop: {ex.Message}");
+        }
+        
         Console.WriteLine($"✅ BLAZOR: Задача перемещена и UI обновлен");
     }
 
