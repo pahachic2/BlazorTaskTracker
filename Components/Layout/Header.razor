@@ -1,0 +1,140 @@
+@* Header компонент для таск-трекера *@
+
+<header class="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+    <div class="flex items-center justify-between">
+        <!-- Левая часть - название проекта -->
+        <div class="flex items-center space-x-4">
+            <h1 class="text-xl font-semibold text-gray-900">@ProjectName</h1>
+            @if (!string.IsNullOrEmpty(ProjectDescription))
+            {
+                <span class="text-sm text-gray-500">@ProjectDescription</span>
+            }
+        </div>
+        
+        <!-- Правая часть - поиск, кнопки, профиль -->
+        <div class="flex items-center space-x-4">
+            <!-- Строка поиска -->
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <input type="text" 
+                       @bind="searchQuery" 
+                       @bind:event="oninput"
+                       @onkeypress="HandleSearchKeyPress"
+                       placeholder="Поиск задач..." 
+                       class="block w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+            </div>
+            
+            <!-- Кнопка "Добавить задачу" -->
+            <button @onclick="OnAddTaskClick" 
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Добавить задачу
+            </button>
+            
+            <!-- Дополнительные кнопки (опционально) -->
+            @if (ShowFiltersButton)
+            {
+                <button @onclick="OnFiltersClick" 
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                    </svg>
+                    Фильтры
+                </button>
+            }
+            
+            <!-- Иконка пользователя -->
+            <div class="relative">
+                <button @onclick="ToggleUserMenu" 
+                        class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
+                    @if (!string.IsNullOrEmpty(UserAvatarUrl))
+                    {
+                        <img class="h-8 w-8 rounded-full object-cover" src="@UserAvatarUrl" alt="@UserName">
+                    }
+                    else
+                    {
+                        <div class="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                            <span class="text-sm font-medium text-gray-700">
+                                @(string.IsNullOrEmpty(UserName) ? "?" : UserName.Substring(0, 1).ToUpper())
+                            </span>
+                        </div>
+                    }
+                </button>
+                
+                <!-- Выпадающее меню пользователя (показывается при клике) -->
+                @if (showUserMenu)
+                {
+                    <div class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                        <div class="px-4 py-2 border-b border-gray-100">
+                            <p class="text-sm font-medium text-gray-900">@UserName</p>
+                            <p class="text-xs text-gray-500">@UserEmail</p>
+                        </div>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                            Профиль
+                        </a>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                            Настройки
+                        </a>
+                        <div class="border-t border-gray-100">
+                            <button @onclick="OnLogoutClick" 
+                                    class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                                Выйти
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</header>
+
+@code {
+    // Параметры компонента
+    [Parameter] public string ProjectName { get; set; } = "Мой проект";
+    [Parameter] public string ProjectDescription { get; set; } = "";
+    [Parameter] public string UserName { get; set; } = "Пользователь";
+    [Parameter] public string UserEmail { get; set; } = "user@example.com";
+    [Parameter] public string UserAvatarUrl { get; set; } = "";
+    [Parameter] public bool ShowFiltersButton { get; set; } = true;
+    
+    // События
+    [Parameter] public EventCallback OnAddTaskClick { get; set; }
+    [Parameter] public EventCallback OnFiltersClick { get; set; }
+    [Parameter] public EventCallback OnUserMenuClick { get; set; }
+    [Parameter] public EventCallback OnLogoutClick { get; set; }
+    [Parameter] public EventCallback<string> OnSearchChanged { get; set; }
+    
+    // Внутренние переменные
+    private string searchQuery = "";
+    private bool showUserMenu = false;
+    
+    // Обработка поиска
+    private async Task HandleSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && OnSearchChanged.HasDelegate)
+        {
+            await OnSearchChanged.InvokeAsync(searchQuery);
+        }
+    }
+    
+    // Переключение меню пользователя
+    private void ToggleUserMenu()
+    {
+        showUserMenu = !showUserMenu;
+    }
+    
+    // Закрытие меню при клике вне его (можно добавить JavaScript для этого)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Здесь можно добавить JavaScript для закрытия меню при клике вне его
+        }
+    }
+} 

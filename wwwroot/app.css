@@ -190,7 +190,6 @@ html, body {
 .create-project-button:hover {
     background-color: #0056b3;
 }
-
 .project-list-section {
     flex-grow: 1; /* Takes remaining vertical space */
 }
@@ -227,3 +226,4 @@ html, body {
    A better approach might be to scope text-align to login-container.
    For now, assuming .project-page-container text-align:left is enough.
 */
+

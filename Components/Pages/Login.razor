@@ -1,4 +1,3 @@
-@page "/"
 @page "/login"
 @inject NavigationManager NavigationManager
 @using BlazorTaskTracker.Components.Layout
@@ -31,7 +30,7 @@
         if (username == "test" && password == "test")
         {
             errorMessage = null; // Clear error message
-            NavigationManager.NavigateTo("/projects"); // UPDATED LINE
+            NavigationManager.NavigateTo("/"); // Navigate to home page (now projects)
         }
         else
         {

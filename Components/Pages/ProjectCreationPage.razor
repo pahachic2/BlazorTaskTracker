@@ -1,57 +1,188 @@
+@page "/"
 @page "/projects"
 @inject NavigationManager NavigationManager
+@using BlazorTaskTracker.Components.Layout
 
-<div class="project-page-container">
-    <header class="project-page-header">
-        <h1>My Projects</h1>
-    </header>
-
-    <section class="project-creation-section">
-        <h2>Create a new project</h2>
-        <div class="project-input-group">
-            <input type="text" @bind="newProjectName" placeholder="Enter project name" class="project-name-input" />
-            <button class="create-project-button" @onclick="CreateNewProject">Create Project</button>
+<div class="flex h-screen bg-gray-50">
+    <!-- Левая боковая панель (Sidebar) -->
+    <aside class="w-20 bg-white shadow-lg flex flex-col items-center py-4">
+        <!-- Логотип/Иконка -->
+        <div class="mb-8">
+            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                <span class="text-white font-bold text-lg">T</span>
+            </div>
         </div>
-    </section>
-
-    <section class="project-list-section">
-        <h2>Existing Projects</h2>
-        @if (projects != null && projects.Any())
-        {
-            <ul class="project-list">
-                @foreach (var project in projects)
-                {
-                    <li class="project-list-item">@project</li>
-                }
-            </ul>
-        }
-        else
-        {
-            <p>No projects created yet. Start by creating one above!</p>
-        }
-    </section>
+        
+        <!-- Навигационные иконки -->
+        <nav class="flex flex-col space-y-4">
+            <a href="#" class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-200 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"></path>
+                </svg>
+            </a>
+            
+            <a href="#" class="w-12 h-12 text-gray-400 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                </svg>
+            </a>
+            
+            <a href="#" class="w-12 h-12 text-gray-400 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+            </a>
+        </nav>
+        
+        <!-- Профиль пользователя внизу -->
+        <div class="mt-auto">
+            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                <span class="text-gray-600 font-medium text-sm">А</span>
+            </div>
+        </div>
+    </aside>
+    
+    <!-- Основная часть (Main Content) -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <!-- Используем компонент Header -->
+        <Header ProjectName="TaskTracker Pro" 
+                ProjectDescription="Управление задачами и проектами"
+                UserName="Анна Иванова"
+                UserEmail="anna@example.com"
+                OnAddTaskClick="HandleAddTask"
+                OnSearchChanged="HandleSearch"
+                OnLogoutClick="HandleLogout" />
+        
+        <!-- Контент страницы -->
+        <div class="flex-1 overflow-auto p-6">
+            <!-- Kanban доска -->
+            <div class="flex space-x-6 h-full">
+                <!-- Колонка "К выполнению" -->
+                <div class="w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-gray-700">К выполнению</h3>
+                        <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs">3</span>
+                    </div>
+                    
+                    <div class="space-y-3 flex-1">
+                        <!-- Карточка задачи -->
+                        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow">
+                            <div class="flex items-start justify-between mb-2">
+                                <h4 class="font-medium text-gray-900 text-sm">Создать дизайн главной страницы</h4>
+                            </div>
+                            <p class="text-gray-600 text-xs mb-3">Разработать макет главной страницы в Figma</p>
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="flex space-x-1">
+                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">Design</span>
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Frontend</span>
+                                </div>
+                                <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <span class="text-white text-xs font-medium">А</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Еще одна карточка -->
+                        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow">
+                            <h4 class="font-medium text-gray-900 text-sm mb-2">Настроить CI/CD pipeline</h4>
+                            <div class="flex items-center justify-between">
+                                <div class="flex space-x-1">
+                                    <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">Backend</span>
+                                </div>
+                                <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                    <span class="text-white text-xs font-medium">П</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Кнопка добавления задачи в колонку -->
+                    <button class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors">
+                        + Добавить задачу
+                    </button>
+                </div>
+                
+                <!-- Колонка "В работе" -->
+                <div class="w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-gray-700">В работе</h3>
+                        <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs">1</span>
+                    </div>
+                    
+                    <div class="space-y-3 flex-1">
+                        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow">
+                            <h4 class="font-medium text-gray-900 text-sm mb-2">Реализовать авторизацию</h4>
+                            <p class="text-gray-600 text-xs mb-3">JWT токены, refresh tokens</p>
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="flex space-x-1">
+                                    <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">Backend</span>
+                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Feature</span>
+                                </div>
+                                <div class="flex -space-x-1">
+                                    <div class="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
+                                        <span class="text-white text-xs font-medium">И</span>
+                                    </div>
+                                    <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
+                                        <span class="text-white text-xs font-medium">П</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors">
+                        + Добавить задачу
+                    </button>
+                </div>
+                
+                <!-- Колонка "Выполнено" -->
+                <div class="w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-gray-700">Выполнено</h3>
+                        <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs">2</span>
+                    </div>
+                    
+                    <div class="space-y-3 flex-1">
+                        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow opacity-75">
+                            <h4 class="font-medium text-gray-900 text-sm mb-2">Создать базу данных</h4>
+                            <div class="flex items-center justify-between">
+                                <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">Backend</span>
+                                <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                    <span class="text-white text-xs font-medium">П</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors">
+                        + Добавить задачу
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
 </div>
 
 @code {
-    private string newProjectName;
-    private List<string> projects = new List<string>();
-
-    private void CreateNewProject()
+    // Обработчики событий для Header компонента
+    private void HandleAddTask()
     {
-        if (!string.IsNullOrWhiteSpace(newProjectName))
-        {
-            if (!projects.Contains(newProjectName.Trim())) // Optional: Prevent duplicate project names
-            {
-                projects.Add(newProjectName.Trim());
-                Console.WriteLine($"Project created: {newProjectName.Trim()}");
-            }
-            else
-            {
-                Console.WriteLine($"Project already exists: {newProjectName.Trim()}");
-                // Optionally, set an error message to display to the user here
-            }
-            newProjectName = string.Empty; // Clear the input field
-            StateHasChanged(); // Notify Blazor that the UI needs to be updated
-        }
+        // Логика добавления новой задачи
+        Console.WriteLine("Добавление новой задачи");
+    }
+    
+    private void HandleSearch(string searchQuery)
+    {
+        // Логика поиска задач
+        Console.WriteLine($"Поиск: {searchQuery}");
+    }
+    
+    private void HandleLogout()
+    {
+        // Логика выхода из системы
+        NavigationManager.NavigateTo("/login");
     }
 }
