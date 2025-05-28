@@ -26,6 +26,7 @@
                          data-column-id="@column.Id"
                          class="kanban-task bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
                          @onclick="@(() => HandleTaskClick(task))"
+                         @onmouseenter="@(() => HandleTaskMouseEnter(task))"
                          @onclick:preventDefault="false"
                          @onclick:stopPropagation="false">
                         
@@ -128,91 +129,135 @@
     [Parameter] public EventCallback<string> OnAddTaskToColumn { get; set; }
     [Parameter] public EventCallback OnAddColumn { get; set; }
     [Parameter] public EventCallback<TaskMovedEventArgs> OnTaskMoved { get; set; }
-    
-    // Для JavaScript interop
+
+    private bool jsInteropDone = false;
     private DotNetObjectReference<KanbanBoard>? dotNetRef;
-    
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        Console.WriteLine($"🔄 BLAZOR: OnAfterRenderAsync вызван, firstRender: {firstRender}, jsInteropDone: {jsInteropDone}");
+        
         if (firstRender)
         {
+            Console.WriteLine("🔄 BLAZOR: Это первый рендер, начинаем инициализацию...");
+            
             dotNetRef = DotNetObjectReference.Create(this);
+            Console.WriteLine("🔄 BLAZOR: DotNetObjectReference создан");
+            
+            // Проверяем базовые JavaScript функции
+            try
+            {
+                var hasWindow = await JSRuntime.InvokeAsync<bool>("eval", "typeof window !== 'undefined'");
+                Console.WriteLine($"🔄 BLAZOR: Window объект доступен: {hasWindow}");
+                
+                var hasConsole = await JSRuntime.InvokeAsync<bool>("eval", "typeof console !== 'undefined'");
+                Console.WriteLine($"🔄 BLAZOR: Console объект доступен: {hasConsole}");
+                
+                // Принудительно выводим сообщение в консоль
+                await JSRuntime.InvokeVoidAsync("console.log", "🔄 BLAZOR: Тест вызова JavaScript из Blazor");
+                
+                // Проверяем наш объект
+                var hasKanbanDragDrop = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.kanbanDragDrop !== 'undefined'");
+                Console.WriteLine($"🔄 BLAZOR: kanbanDragDrop объект доступен: {hasKanbanDragDrop}");
+                
+                if (!hasKanbanDragDrop)
+                {
+                    Console.WriteLine("❌ BLAZOR: kanbanDragDrop не найден! Проверяем загрузку скрипта...");
+                    
+                    // Попробуем загрузить скрипт принудительно
+                    await JSRuntime.InvokeVoidAsync("eval", @"
+                        if (!window.kanbanDragDrop) {
+                            console.log('🔄 JS: Попытка принудительной загрузки kanbanDragDrop...');
+                            var script = document.createElement('script');
+                            script.src = 'js/kanban-drag-drop.js';
+                            script.onload = function() { console.log('✅ JS: Скрипт загружен принудительно'); };
+                            script.onerror = function() { console.log('❌ JS: Ошибка загрузки скрипта'); };
+                            document.head.appendChild(script);
+                        }
+                    ");
+                    
+                    // Ждем загрузки
+                    await Task.Delay(1000);
+                    
+                    hasKanbanDragDrop = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.kanbanDragDrop !== 'undefined'");
+                    Console.WriteLine($"🔄 BLAZOR: После принудительной загрузки kanbanDragDrop доступен: {hasKanbanDragDrop}");
+                }
+                
+                if (hasKanbanDragDrop)
+                {
+                    await InitializeDragAndDrop();
+                }
+                else
+                {
+                    Console.WriteLine("❌ BLAZOR: Не удалось загрузить kanbanDragDrop!");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ BLAZOR: Ошибка при проверке JavaScript: {ex.Message}");
+            }
         }
-        
-        // Всегда переинициализируем после рендера
-        await Task.Delay(200); // Увеличиваем задержку
-        await InitializeDragAndDrop();
     }
     
     private async Task InitializeDragAndDrop()
     {
         try
         {
-            Console.WriteLine("Инициализация drag-and-drop...");
-            
-            // Проверяем, что JavaScript загружен
-            var jsLoaded = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.kanbanDragDrop !== 'undefined'");
-            if (!jsLoaded)
-            {
-                Console.WriteLine("JavaScript kanbanDragDrop не загружен!");
-                return;
-            }
+            Console.WriteLine("🚀 BLAZOR: Начинаем инициализацию drag-and-drop...");
             
             // Инициализируем drag-and-drop для всех задач и колонок
             foreach (var column in Columns)
             {
-                Console.WriteLine($"Инициализация колонки: {column.Id}");
+                Console.WriteLine($"🏗️ BLAZOR: Инициализация колонки: {column.Id} с {column.Tasks.Count} задачами");
                 
-                // Инициализируем drop zone для колонки
-                await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initColumnDropZone", 
-                    $"column-{column.Id}", column.Id, dotNetRef);
+                // Сначала инициализируем drop zone для колонки
+                await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initColumnDropZone", $"column-{column.Id}", column.Id, dotNetRef);
                 
-                // Инициализируем drag для всех задач в колонке
+                // Затем инициализируем drag для всех задач в колонке
                 foreach (var task in column.Tasks)
                 {
-                    Console.WriteLine($"Инициализация задачи: {task.Id} в колонке {column.Id}");
-                    await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initTaskDragDrop", 
-                        $"task-{task.Id}", task.Id, column.Id);
+                    Console.WriteLine($"🎯 BLAZOR: Инициализация задачи: {task.Id} ({task.Title}) в колонке {column.Id}");
+                    await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initTaskDragDrop", $"task-{task.Id}", task.Id, column.Id);
                 }
             }
             
-            Console.WriteLine("Drag-and-drop инициализирован успешно!");
+            Console.WriteLine("✅ BLAZOR: Drag-and-drop инициализирован успешно!");
+            jsInteropDone = true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Ошибка инициализации drag-and-drop: {ex.Message}");
+            Console.WriteLine($"❌ BLAZOR: Ошибка инициализации drag-and-drop: {ex.Message}");
         }
     }
-    
+
     private async Task HandleTaskClick(KanbanTask task)
     {
-        // Проверяем, что это не drag операция
-        await Task.Delay(10);
+        Console.WriteLine($"🖱️ BLAZOR: Клик по задаче: {task.Title}");
         await OnTaskClick.InvokeAsync(task);
     }
     
+    private void HandleTaskMouseEnter(KanbanTask task)
+    {
+        Console.WriteLine($"🐭 BLAZOR: Наведение мыши на задачу: {task.Title} (ID: {task.Id})");
+    }
+
     [JSInvokable]
     public async Task OnTaskDropped(string taskId, string fromColumnId, string toColumnId)
     {
-        try
+        Console.WriteLine($"🎯 BLAZOR: Получен drop события - задача {taskId} из {fromColumnId} в {toColumnId}");
+        
+        var args = new TaskMovedEventArgs
         {
-            Console.WriteLine($"Задача {taskId} перемещена из {fromColumnId} в {toColumnId}");
-            
-            var eventArgs = new TaskMovedEventArgs
-            {
-                TaskId = taskId,
-                FromColumnId = fromColumnId,
-                ToColumnId = toColumnId
-            };
-            
-            await OnTaskMoved.InvokeAsync(eventArgs);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка при перемещении задачи: {ex.Message}");
-        }
+            TaskId = taskId,
+            FromColumnId = fromColumnId,
+            ToColumnId = toColumnId
+        };
+        await OnTaskMoved.InvokeAsync(args);
+        StateHasChanged(); // Ensure UI updates
+        
+        Console.WriteLine($"✅ BLAZOR: Задача перемещена и UI обновлен");
     }
-    
+
     // Методы для стилизации
     private string GetTagClasses(string tag)
     {
@@ -258,17 +303,18 @@
     
     public async ValueTask DisposeAsync()
     {
-        try
+        if (dotNetRef != null)
         {
-            if (dotNetRef != null)
+            try
             {
                 await JSRuntime.InvokeVoidAsync("kanbanDragDrop.cleanup");
-                dotNetRef.Dispose();
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ BLAZOR: Ошибка при очистке: {ex.Message}");
+            }
+            dotNetRef.Dispose();
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Ошибка при очистке ресурсов: {ex.Message}");
-        }
+        await Task.CompletedTask;
     }
 }

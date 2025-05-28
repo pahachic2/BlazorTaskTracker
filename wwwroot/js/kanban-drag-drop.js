@@ -2,29 +2,40 @@
 window.kanbanDragDrop = {
     draggedTaskId: null,
     draggedFromColumnId: null,
+    isInitialized: false,
 
     // Инициализация drag-and-drop для задачи
     initTaskDragDrop: function (taskElementId, taskId, columnId) {
-        console.log(`Инициализация drag для задачи: ${taskElementId}, ID: ${taskId}, колонка: ${columnId}`);
+        console.log(`🎯 JS: Инициализация drag для задачи: ${taskElementId}, ID: ${taskId}, колонка: ${columnId}`);
         
         const taskElement = document.getElementById(taskElementId);
         if (!taskElement) {
-            console.warn(`Task element not found: ${taskElementId}`);
+            console.error(`❌ JS: Task element не найден: ${taskElementId}`);
+            // Попробуем найти все элементы с классом kanban-task
+            const allTasks = document.querySelectorAll('.kanban-task');
+            console.log(`🔍 JS: Найдено ${allTasks.length} элементов с классом kanban-task:`, Array.from(allTasks).map(el => el.id));
             return;
         }
 
-        console.log(`Элемент найден: ${taskElementId}`);
+        console.log(`✅ JS: Элемент найден: ${taskElementId}`, taskElement);
+        
+        // Проверяем, что элемент видим
+        const rect = taskElement.getBoundingClientRect();
+        console.log(`📐 JS: Размеры элемента ${taskElementId}:`, rect);
+        
         taskElement.draggable = true;
+        console.log(`🔧 JS: Установлен draggable=true для ${taskElementId}`);
         
         // Удаляем старые обработчики если есть
         if (taskElement._dragStartHandler) {
             taskElement.removeEventListener('dragstart', taskElement._dragStartHandler);
             taskElement.removeEventListener('dragend', taskElement._dragEndHandler);
+            console.log(`🧹 JS: Удалены старые обработчики для ${taskElementId}`);
         }
         
         // Создаем новые обработчики
         taskElement._dragStartHandler = function (e) {
-            console.log(`Начало перетаскивания задачи: ${taskId}`);
+            console.log(`🚀 JS: DRAGSTART - Начало перетаскивания задачи: ${taskId}`);
             kanbanDragDrop.draggedTaskId = taskId;
             kanbanDragDrop.draggedFromColumnId = columnId;
             
@@ -34,51 +45,56 @@ window.kanbanDragDrop = {
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/html', e.target.outerHTML);
             
-            // Предотвращаем клик после drag
-            setTimeout(() => {
-                e.target.style.pointerEvents = 'none';
-            }, 0);
+            console.log(`📦 JS: Данные drag установлены:`, {
+                taskId: kanbanDragDrop.draggedTaskId,
+                fromColumn: kanbanDragDrop.draggedFromColumnId
+            });
         };
 
         taskElement._dragEndHandler = function (e) {
-            console.log(`Конец перетаскивания задачи: ${taskId}`);
+            console.log(`🏁 JS: DRAGEND - Конец перетаскивания задачи: ${taskId}`);
             // Восстанавливаем стили
             e.target.style.opacity = '1';
             e.target.classList.remove('dragging');
             
-            // Восстанавливаем события через небольшую задержку
-            setTimeout(() => {
-                e.target.style.pointerEvents = 'auto';
-            }, 100);
-            
             kanbanDragDrop.draggedTaskId = null;
             kanbanDragDrop.draggedFromColumnId = null;
+            console.log(`🧹 JS: Очищены данные drag`);
         };
         
         // Добавляем обработчики
         taskElement.addEventListener('dragstart', taskElement._dragStartHandler);
         taskElement.addEventListener('dragend', taskElement._dragEndHandler);
         
-        console.log(`Drag-and-drop настроен для задачи: ${taskId}`);
+        // Добавляем обработчик наведения мыши для отладки
+        taskElement.addEventListener('mouseenter', function() {
+            console.log(`🐭 JS: Наведение мыши на задачу ${taskId} (${taskElementId})`);
+        });
+        
+        console.log(`✅ JS: Drag-and-drop настроен для задачи: ${taskId}`);
     },
 
     // Инициализация drop zone для колонки
     initColumnDropZone: function (columnElementId, columnId, dotNetRef) {
-        console.log(`Инициализация drop zone для колонки: ${columnElementId}, ID: ${columnId}`);
+        console.log(`🏗️ JS: Инициализация drop zone для колонки: ${columnElementId}, ID: ${columnId}`);
         
         const columnElement = document.getElementById(columnElementId);
         if (!columnElement) {
-            console.warn(`Column element not found: ${columnElementId}`);
+            console.error(`❌ JS: Column element не найден: ${columnElementId}`);
+            // Попробуем найти все колонки
+            const allColumns = document.querySelectorAll('.kanban-column');
+            console.log(`🔍 JS: Найдено ${allColumns.length} элементов с классом kanban-column:`, Array.from(allColumns).map(el => el.id));
             return;
         }
 
-        console.log(`Элемент колонки найден: ${columnElementId}`);
+        console.log(`✅ JS: Элемент колонки найден: ${columnElementId}`, columnElement);
 
         // Удаляем старые обработчики если есть
         if (columnElement._dragOverHandler) {
             columnElement.removeEventListener('dragover', columnElement._dragOverHandler);
             columnElement.removeEventListener('dragleave', columnElement._dragLeaveHandler);
             columnElement.removeEventListener('drop', columnElement._dropHandler);
+            console.log(`🧹 JS: Удалены старые обработчики для колонки ${columnElementId}`);
         }
         
         // Создаем новые обработчики
@@ -88,12 +104,14 @@ window.kanbanDragDrop = {
             
             // Добавляем визуальную подсветку
             columnElement.classList.add('drag-over');
+            console.log(`🎨 JS: DRAGOVER - Подсветка колонки ${columnId}`);
         };
 
         columnElement._dragLeaveHandler = function (e) {
             // Убираем подсветку только если покидаем колонку полностью
             if (!columnElement.contains(e.relatedTarget)) {
                 columnElement.classList.remove('drag-over');
+                console.log(`🎨 JS: DRAGLEAVE - Убрана подсветка колонки ${columnId}`);
             }
         };
 
@@ -101,17 +119,37 @@ window.kanbanDragDrop = {
             e.preventDefault();
             columnElement.classList.remove('drag-over');
             
-            console.log(`Drop в колонку: ${columnId}, перетаскиваемая задача: ${kanbanDragDrop.draggedTaskId}, из колонки: ${kanbanDragDrop.draggedFromColumnId}`);
+            console.log(`🎯 JS: DROP в колонку: ${columnId}`);
+            console.log(`📦 JS: Текущие данные drag:`, {
+                taskId: kanbanDragDrop.draggedTaskId,
+                fromColumn: kanbanDragDrop.draggedFromColumnId,
+                toColumn: columnId
+            });
             
             if (kanbanDragDrop.draggedTaskId && kanbanDragDrop.draggedFromColumnId !== columnId) {
-                console.log(`Вызываем Blazor метод для перемещения задачи`);
-                // Вызываем метод Blazor для обновления данных
-                dotNetRef.invokeMethodAsync('OnTaskDropped', 
-                    kanbanDragDrop.draggedTaskId, 
-                    kanbanDragDrop.draggedFromColumnId, 
-                    columnId);
+                console.log(`🚀 JS: Вызываем Blazor метод OnTaskDropped`);
+                try {
+                    if (dotNetRef && dotNetRef.invokeMethodAsync) {
+                        dotNetRef.invokeMethodAsync('OnTaskDropped', 
+                            kanbanDragDrop.draggedTaskId, 
+                            kanbanDragDrop.draggedFromColumnId, 
+                            columnId);
+                        console.log(`✅ JS: Blazor метод вызван успешно`);
+                    } else {
+                        console.log(`⚠️ JS: dotNetRef недоступен, используем fallback`);
+                        // Fallback: просто перемещаем элемент в DOM
+                        kanbanDragDrop.moveTaskInDOM(kanbanDragDrop.draggedTaskId, kanbanDragDrop.draggedFromColumnId, columnId);
+                    }
+                } catch (error) {
+                    console.error(`❌ JS: Ошибка вызова Blazor метода:`, error);
+                }
             } else {
-                console.log(`Перемещение отменено: задача уже в этой колонке или нет активной задачи`);
+                console.log(`⚠️ JS: Перемещение отменено:`, {
+                    reason: kanbanDragDrop.draggedFromColumnId === columnId ? 'Та же колонка' : 'Нет активной задачи',
+                    draggedTaskId: kanbanDragDrop.draggedTaskId,
+                    fromColumn: kanbanDragDrop.draggedFromColumnId,
+                    toColumn: columnId
+                });
             }
         };
         
@@ -120,17 +158,68 @@ window.kanbanDragDrop = {
         columnElement.addEventListener('dragleave', columnElement._dragLeaveHandler);
         columnElement.addEventListener('drop', columnElement._dropHandler);
         
-        console.log(`Drop zone настроен для колонки: ${columnId}`);
+        console.log(`✅ JS: Drop zone настроен для колонки: ${columnId}`);
+    },
+
+    // Fallback метод для перемещения задач в DOM
+    moveTaskInDOM: function(taskId, fromColumnId, toColumnId) {
+        console.log(`🔄 JS: Fallback перемещение задачи ${taskId} из ${fromColumnId} в ${toColumnId}`);
+        
+        const taskElement = document.getElementById(`task-${taskId}`);
+        const targetColumn = document.getElementById(`column-${toColumnId}`);
+        
+        if (taskElement && targetColumn) {
+            const taskList = targetColumn.querySelector('.space-y-3');
+            if (taskList) {
+                taskList.appendChild(taskElement);
+                console.log(`✅ JS: Задача перемещена в DOM`);
+            }
+        }
+    },
+
+    // Автоматическая инициализация всех элементов
+    autoInitialize: function() {
+        console.log(`🤖 JS: Автоматическая инициализация drag-and-drop...`);
+        
+        if (kanbanDragDrop.isInitialized) {
+            console.log(`⚠️ JS: Уже инициализировано, пропускаем`);
+            return;
+        }
+        
+        const tasks = document.querySelectorAll('.kanban-task');
+        const columns = document.querySelectorAll('.kanban-column');
+        
+        console.log(`🔍 JS: Найдено ${tasks.length} задач и ${columns.length} колонок для автоинициализации`);
+        
+        // Инициализируем колонки
+        columns.forEach(column => {
+            const columnId = column.id.replace('column-', '');
+            kanbanDragDrop.initColumnDropZone(column.id, columnId, null);
+        });
+        
+        // Инициализируем задачи
+        tasks.forEach(task => {
+            const taskId = task.getAttribute('data-task-id');
+            const columnId = task.getAttribute('data-column-id');
+            if (taskId && columnId) {
+                kanbanDragDrop.initTaskDragDrop(task.id, taskId, columnId);
+            }
+        });
+        
+        kanbanDragDrop.isInitialized = true;
+        console.log(`✅ JS: Автоинициализация завершена`);
     },
 
     // Очистка всех обработчиков
     cleanup: function () {
-        console.log('Очистка drag-and-drop обработчиков');
+        console.log('🧹 JS: Очистка drag-and-drop обработчиков');
         kanbanDragDrop.draggedTaskId = null;
         kanbanDragDrop.draggedFromColumnId = null;
+        kanbanDragDrop.isInitialized = false;
         
         // Очищаем все обработчики drag-and-drop
         const tasks = document.querySelectorAll('.kanban-task');
+        console.log(`🧹 JS: Найдено ${tasks.length} задач для очистки`);
         tasks.forEach(task => {
             if (task._dragStartHandler) {
                 task.removeEventListener('dragstart', task._dragStartHandler);
@@ -141,6 +230,7 @@ window.kanbanDragDrop = {
         });
         
         const columns = document.querySelectorAll('.kanban-column');
+        console.log(`🧹 JS: Найдено ${columns.length} колонок для очистки`);
         columns.forEach(column => {
             if (column._dragOverHandler) {
                 column.removeEventListener('dragover', column._dragOverHandler);
@@ -151,8 +241,28 @@ window.kanbanDragDrop = {
                 column._dropHandler = null;
             }
         });
+        
+        console.log('✅ JS: Очистка завершена');
     }
 };
 
 // Проверяем, что объект создан
-console.log('kanbanDragDrop объект инициализирован:', window.kanbanDragDrop); 
+console.log('🚀 JS: kanbanDragDrop объект инициализирован:', window.kanbanDragDrop);
+
+// Добавляем глобальную проверку DOM
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 JS: DOM загружен');
+    setTimeout(() => {
+        const tasks = document.querySelectorAll('.kanban-task');
+        const columns = document.querySelectorAll('.kanban-column');
+        console.log(`🔍 JS: После загрузки DOM найдено ${tasks.length} задач и ${columns.length} колонок`);
+        
+        // Автоматически инициализируем drag-and-drop через 2 секунды, если Blazor не сделал этого
+        setTimeout(() => {
+            if (!kanbanDragDrop.isInitialized) {
+                console.log(`⏰ JS: Blazor не инициализировал drag-and-drop, запускаем автоинициализацию...`);
+                kanbanDragDrop.autoInitialize();
+            }
+        }, 2000);
+    }, 1000);
+}); 
