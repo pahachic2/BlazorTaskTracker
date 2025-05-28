@@ -1,6 +1,6 @@
 /* Keep existing html, body or use this if it's better */
 html, body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; /* Modern system fonts */
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     height: 100%;
     margin: 0;
     display: flex;
@@ -226,4 +226,53 @@ html, body {
    A better approach might be to scope text-align to login-container.
    For now, assuming .project-page-container text-align:left is enough.
 */
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+/* Drag and Drop стили */
+.kanban-task {
+    transition: all 0.2s ease;
+    cursor: grab;
+}
+
+.kanban-task:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.kanban-task.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+    cursor: grabbing;
+}
+
+.kanban-column.drag-over {
+    background-color: #e0f2fe !important;
+    border: 2px dashed #0288d1;
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}
+
+.kanban-column {
+    transition: all 0.2s ease;
+}
+
+/* Анимация для перемещения задач */
+@keyframes taskMove {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.task-moved {
+    animation: taskMove 0.3s ease;
+}
 

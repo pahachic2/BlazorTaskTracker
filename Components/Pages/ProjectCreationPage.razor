@@ -2,6 +2,7 @@
 @page "/projects"
 @inject NavigationManager NavigationManager
 @using BlazorTaskTracker.Components.Layout
+@using BlazorTaskTracker.Models
 
 <div class="flex h-screen bg-gray-50">
     <!-- Левая боковая панель (Sidebar) -->
@@ -47,7 +48,7 @@
     <main class="flex-1 flex flex-col overflow-hidden">
         <!-- Используем компонент Header -->
         <Header ProjectName="TaskTracker Pro" 
-                ProjectDescription="Управление задачами и проектами"
+                ProjectDescription="Управление задачами и проектами в одном месте"
                 UserName="Анна Иванова"
                 UserEmail="anna@example.com"
                 OnAddTaskClick="HandleAddTask"
@@ -55,134 +56,184 @@
                 OnLogoutClick="HandleLogout" />
         
         <!-- Контент страницы -->
-        <div class="flex-1 overflow-auto p-6">
-            <!-- Kanban доска -->
-            <div class="flex space-x-6 h-full">
-                <!-- Колонка "К выполнению" -->
-                <div class="w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-gray-700">К выполнению</h3>
-                        <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs">3</span>
-                    </div>
-                    
-                    <div class="space-y-3 flex-1">
-                        <!-- Карточка задачи -->
-                        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow">
-                            <div class="flex items-start justify-between mb-2">
-                                <h4 class="font-medium text-gray-900 text-sm">Создать дизайн главной страницы</h4>
-                            </div>
-                            <p class="text-gray-600 text-xs mb-3">Разработать макет главной страницы в Figma</p>
-                            
-                            <div class="flex items-center justify-between">
-                                <div class="flex space-x-1">
-                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">Design</span>
-                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Frontend</span>
-                                </div>
-                                <div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                                    <span class="text-white text-xs font-medium">А</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Еще одна карточка -->
-                        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow">
-                            <h4 class="font-medium text-gray-900 text-sm mb-2">Настроить CI/CD pipeline</h4>
-                            <div class="flex items-center justify-between">
-                                <div class="flex space-x-1">
-                                    <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">Backend</span>
-                                </div>
-                                <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                                    <span class="text-white text-xs font-medium">П</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Кнопка добавления задачи в колонку -->
-                    <button class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors">
-                        + Добавить задачу
-                    </button>
-                </div>
-                
-                <!-- Колонка "В работе" -->
-                <div class="w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-gray-700">В работе</h3>
-                        <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs">1</span>
-                    </div>
-                    
-                    <div class="space-y-3 flex-1">
-                        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow">
-                            <h4 class="font-medium text-gray-900 text-sm mb-2">Реализовать авторизацию</h4>
-                            <p class="text-gray-600 text-xs mb-3">JWT токены, refresh tokens</p>
-                            
-                            <div class="flex items-center justify-between">
-                                <div class="flex space-x-1">
-                                    <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">Backend</span>
-                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">Feature</span>
-                                </div>
-                                <div class="flex -space-x-1">
-                                    <div class="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
-                                        <span class="text-white text-xs font-medium">И</span>
-                                    </div>
-                                    <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
-                                        <span class="text-white text-xs font-medium">П</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors">
-                        + Добавить задачу
-                    </button>
-                </div>
-                
-                <!-- Колонка "Выполнено" -->
-                <div class="w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-gray-700">Выполнено</h3>
-                        <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs">2</span>
-                    </div>
-                    
-                    <div class="space-y-3 flex-1">
-                        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow opacity-75">
-                            <h4 class="font-medium text-gray-900 text-sm mb-2">Создать базу данных</h4>
-                            <div class="flex items-center justify-between">
-                                <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">Backend</span>
-                                <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                                    <span class="text-white text-xs font-medium">П</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors">
-                        + Добавить задачу
-                    </button>
-                </div>
-            </div>
+        <div class="flex-1 overflow-hidden">
+            <!-- Используем компонент KanbanBoard -->
+            <KanbanBoard Columns="kanbanColumns" 
+                        OnTaskClick="HandleTaskClick"
+                        OnAddTaskToColumn="HandleAddTaskToColumn"
+                        OnAddColumn="HandleAddColumn"
+                        OnTaskMoved="HandleTaskMoved" />
         </div>
     </main>
 </div>
 
 @code {
+    // Данные для Kanban доски
+    private List<KanbanColumn> kanbanColumns = new();
+    
+    protected override void OnInitialized()
+    {
+        InitializeKanbanData();
+    }
+    
+    private void InitializeKanbanData()
+    {
+        kanbanColumns = new List<KanbanColumn>
+        {
+            new KanbanColumn
+            {
+                Id = "todo",
+                Title = "To Do",
+                Tasks = new List<KanbanTask>
+                {
+                    new KanbanTask
+                    {
+                        Id = "1",
+                        Title = "Создать дизайн главной страницы",
+                        Description = "Разработать макет главной страницы в Figma с учетом современных UX принципов",
+                        Tags = new List<string> { "Design", "Frontend", "Urgent" },
+                        Assignees = new List<string> { "Анна Иванова" },
+                        DueDate = DateTime.Now.AddDays(3),
+                        ColumnId = "todo"
+                    },
+                    new KanbanTask
+                    {
+                        Id = "2",
+                        Title = "Настроить CI/CD pipeline",
+                        Description = "Автоматизация деплоя и тестирования",
+                        Tags = new List<string> { "Backend", "DevOps" },
+                        Assignees = new List<string> { "Петр Сидоров" },
+                        DueDate = DateTime.Now.AddDays(5),
+                        ColumnId = "todo"
+                    },
+                    new KanbanTask
+                    {
+                        Id = "3",
+                        Title = "Написать документацию API",
+                        Tags = new List<string> { "Backend", "Documentation" },
+                        Assignees = new List<string> { "Мария Петрова" },
+                        DueDate = DateTime.Now.AddDays(7),
+                        ColumnId = "todo"
+                    }
+                }
+            },
+            new KanbanColumn
+            {
+                Id = "inprogress",
+                Title = "In Progress",
+                Tasks = new List<KanbanTask>
+                {
+                    new KanbanTask
+                    {
+                        Id = "4",
+                        Title = "Реализовать авторизацию",
+                        Description = "JWT токены, refresh tokens, роли пользователей",
+                        Tags = new List<string> { "Backend", "Feature" },
+                        Assignees = new List<string> { "Иван Козлов", "Петр Сидоров" },
+                        DueDate = DateTime.Now.AddDays(2),
+                        ColumnId = "inprogress"
+                    },
+                    new KanbanTask
+                    {
+                        Id = "5",
+                        Title = "Исправить баг с загрузкой файлов",
+                        Tags = new List<string> { "Bug", "Frontend" },
+                        Assignees = new List<string> { "Анна Иванова" },
+                        DueDate = DateTime.Now.AddDays(1),
+                        ColumnId = "inprogress"
+                    }
+                }
+            },
+            new KanbanColumn
+            {
+                Id = "done",
+                Title = "Done",
+                Tasks = new List<KanbanTask>
+                {
+                    new KanbanTask
+                    {
+                        Id = "6",
+                        Title = "Создать базу данных",
+                        Description = "Настройка PostgreSQL, миграции",
+                        Tags = new List<string> { "Backend", "Database" },
+                        Assignees = new List<string> { "Петр Сидоров" },
+                        ColumnId = "done"
+                    },
+                    new KanbanTask
+                    {
+                        Id = "7",
+                        Title = "Настроить проект",
+                        Tags = new List<string> { "Setup" },
+                        Assignees = new List<string> { "Иван Козлов" },
+                        ColumnId = "done"
+                    }
+                }
+            }
+        };
+    }
+    
     // Обработчики событий для Header компонента
     private void HandleAddTask()
     {
-        // Логика добавления новой задачи
         Console.WriteLine("Добавление новой задачи");
     }
     
     private void HandleSearch(string searchQuery)
     {
-        // Логика поиска задач
         Console.WriteLine($"Поиск: {searchQuery}");
     }
     
     private void HandleLogout()
     {
-        // Логика выхода из системы
         NavigationManager.NavigateTo("/login");
+    }
+    
+    // Обработчики событий для KanbanBoard компонента
+    private void HandleTaskClick(KanbanTask task)
+    {
+        Console.WriteLine($"Клик по задаче: {task.Title}");
+    }
+    
+    private void HandleAddTaskToColumn(string columnId)
+    {
+        Console.WriteLine($"Добавление задачи в колонку: {columnId}");
+    }
+    
+    private void HandleAddColumn()
+    {
+        Console.WriteLine("Добавление новой колонки");
+    }
+    
+    private void HandleTaskMoved(TaskMovedEventArgs eventArgs)
+    {
+        try
+        {
+            // Находим задачу в исходной колонке
+            var sourceColumn = kanbanColumns.FirstOrDefault(c => c.Id == eventArgs.FromColumnId);
+            var task = sourceColumn?.Tasks.FirstOrDefault(t => t.Id == eventArgs.TaskId);
+            
+            if (task != null && sourceColumn != null)
+            {
+                // Удаляем задачу из исходной колонки
+                sourceColumn.Tasks.Remove(task);
+                
+                // Находим целевую колонку и добавляем задачу
+                var targetColumn = kanbanColumns.FirstOrDefault(c => c.Id == eventArgs.ToColumnId);
+                if (targetColumn != null)
+                {
+                    task.ColumnId = eventArgs.ToColumnId;
+                    targetColumn.Tasks.Add(task);
+                    
+                    Console.WriteLine($"Задача '{task.Title}' перемещена из '{eventArgs.FromColumnId}' в '{eventArgs.ToColumnId}'");
+                    
+                    // Обновляем UI
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ошибка при перемещении задачи: {ex.Message}");
+        }
     }
 }
