@@ -58,7 +58,8 @@
         <!-- Контент страницы -->
         <div class="flex-1 overflow-hidden">
             <!-- Используем компонент KanbanBoard -->
-            <KanbanBoard Columns="kanbanColumns" 
+            <KanbanBoard @ref="kanbanBoardRef" 
+                        Columns="kanbanColumns" 
                         OnTaskClick="HandleTaskClick"
                         OnAddTaskToColumn="HandleAddTaskToColumn"
                         OnAddColumn="HandleAddColumn"
@@ -78,6 +79,9 @@
     
     // Состояние модального окна
     private bool isCreateModalVisible = false;
+    
+    // Ссылка на компонент KanbanBoard для переинициализации drag-and-drop
+    private KanbanBoard? kanbanBoardRef;
     
     protected override void OnInitialized()
     {
@@ -204,7 +208,7 @@
         isCreateModalVisible = false;
     }
     
-    private void HandleTaskCreated(KanbanTask newTask)
+    private async void HandleTaskCreated(KanbanTask newTask)
     {
         Console.WriteLine($"✅ Создана новая задача: {newTask.Title}");
         
@@ -217,6 +221,13 @@
             
             // Обновляем UI
             StateHasChanged();
+            
+            // Переинициализируем drag-and-drop для новых карточек
+            if (kanbanBoardRef != null)
+            {
+                Console.WriteLine("🔄 Переинициализация drag-and-drop для новой задачи...");
+                await kanbanBoardRef.RefreshDragAndDrop();
+            }
         }
     }
     

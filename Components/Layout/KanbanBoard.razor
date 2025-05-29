@@ -197,6 +197,13 @@
                 Console.WriteLine($"❌ BLAZOR: Ошибка при проверке JavaScript: {ex.Message}");
             }
         }
+        else if (jsInteropDone)
+        {
+            // Если это не первый рендер, но JS уже инициализирован, 
+            // переинициализируем drag-and-drop для всех задач
+            Console.WriteLine("🔄 BLAZOR: Переинициализация drag-and-drop для обновленных задач...");
+            await ReinitializeDragAndDrop();
+        }
     }
     
     private async Task InitializeDragAndDrop()
@@ -227,6 +234,33 @@
         catch (Exception ex)
         {
             Console.WriteLine($"❌ BLAZOR: Ошибка инициализации drag-and-drop: {ex.Message}");
+        }
+    }
+
+    private async Task ReinitializeDragAndDrop()
+    {
+        try
+        {
+            Console.WriteLine("🔄 BLAZOR: Переинициализация drag-and-drop...");
+            
+            // Небольшая задержка, чтобы DOM успел обновиться
+            await Task.Delay(100);
+            
+            // Переинициализируем drag-and-drop для всех задач
+            foreach (var column in Columns)
+            {
+                foreach (var task in column.Tasks)
+                {
+                    Console.WriteLine($"🔄 BLAZOR: Переинициализация задачи: {task.Id} в колонке {column.Id}");
+                    await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initTaskDragDrop", $"task-{task.Id}", task.Id, column.Id);
+                }
+            }
+            
+            Console.WriteLine("✅ BLAZOR: Переинициализация drag-and-drop завершена!");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ BLAZOR: Ошибка переинициализации drag-and-drop: {ex.Message}");
         }
     }
 
@@ -328,5 +362,15 @@
             dotNetRef.Dispose();
         }
         await Task.CompletedTask;
+    }
+
+    // Публичный метод для переинициализации drag-and-drop (для вызова извне)
+    public async Task RefreshDragAndDrop()
+    {
+        if (jsInteropDone)
+        {
+            Console.WriteLine("🔄 BLAZOR: Внешний вызов переинициализации drag-and-drop...");
+            await ReinitializeDragAndDrop();
+        }
     }
 }
