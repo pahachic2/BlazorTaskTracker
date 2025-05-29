@@ -5,66 +5,66 @@
 @using BlazorTaskTracker.Models
 
 <div class="flex h-screen bg-gray-50">
-    <!-- Левая боковая панель (Sidebar) -->
-    <aside class="w-20 bg-white shadow-lg flex flex-col items-center py-4">
-        <!-- Логотип/Иконка -->
-        <div class="mb-8">
-            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span class="text-white font-bold text-lg">T</span>
-            </div>
-        </div>
-        
-        <!-- Навигационные иконки -->
-        <nav class="flex flex-col space-y-4">
-            <a href="#" class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-200 transition-colors">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"></path>
-                </svg>
-            </a>
-            
-            <a href="#" class="w-12 h-12 text-gray-400 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                </svg>
-            </a>
-            
-            <a href="#" class="w-12 h-12 text-gray-400 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
-            </a>
-        </nav>
-        
-        <!-- Профиль пользователя внизу -->
-        <div class="mt-auto">
-            <div class="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                <span class="text-gray-600 font-medium text-sm">А</span>
-            </div>
-        </div>
-    </aside>
+    <!-- Новая боковая панель с проектами -->
+    <ProjectSidebar Projects="availableProjects"
+                   SelectedProject="selectedProject"
+                   UserName="Анна Иванова"
+                   UserEmail="anna@example.com"
+                   OnProjectSelected="HandleProjectSelected"
+                   OnCreateProject="HandleCreateProject"
+                   OnLogout="HandleLogout" />
     
     <!-- Основная часть (Main Content) -->
     <main class="flex-1 flex flex-col overflow-hidden">
-        <!-- Используем компонент Header -->
-        <Header ProjectName="TaskTracker Pro" 
-                ProjectDescription="Управление задачами и проектами в одном месте"
-                UserName="Анна Иванова"
-                UserEmail="anna@example.com"
-                OnAddTaskClick="HandleAddTask"
-                OnSearchChanged="HandleSearch"
-                OnLogoutClick="HandleLogout" />
-        
-        <!-- Контент страницы -->
-        <div class="flex-1 overflow-hidden">
-            <!-- Используем компонент KanbanBoard -->
-            <KanbanBoard @ref="kanbanBoardRef" 
-                        Columns="kanbanColumns" 
-                        OnTaskClick="HandleTaskClick"
-                        OnAddTaskToColumn="HandleAddTaskToColumn"
-                        OnAddColumn="HandleAddColumn"
-                        OnTaskMoved="HandleTaskMoved" />
-        </div>
+        @if (selectedProject != null)
+        {
+            <!-- Используем компонент Header -->
+            <Header ProjectName="@selectedProject.Name" 
+                    ProjectDescription="@selectedProject.Description"
+                    UserName="Анна Иванова"
+                    UserEmail="anna@example.com"
+                    OnAddTaskClick="HandleAddTask"
+                    OnSearchChanged="HandleSearch"
+                    OnLogoutClick="HandleLogout" />
+            
+            <!-- Контент страницы -->
+            <div class="flex-1 overflow-hidden">
+                <!-- Используем компонент KanbanBoard -->
+                <KanbanBoard @ref="kanbanBoardRef" 
+                            Columns="kanbanColumns" 
+                            OnTaskClick="HandleTaskClick"
+                            OnAddTaskToColumn="HandleAddTaskToColumn"
+                            OnAddColumn="HandleAddColumn"
+                            OnTaskMoved="HandleTaskMoved" />
+            </div>
+        }
+        else
+        {
+            <!-- Экран выбора проекта -->
+            <div class="flex-1 flex items-center justify-center">
+                <div class="text-center max-w-md mx-auto">
+                    <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-2">Добро пожаловать в TaskTracker!</h2>
+                    <p class="text-gray-600 mb-6">
+                        Выберите проект из боковой панели или создайте новый, чтобы начать управление задачами.
+                    </p>
+                    @if (!availableProjects.Any())
+                    {
+                        <button @onclick="HandleCreateProject"
+                                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Создать первый проект
+                        </button>
+                    }
+                </div>
+            </div>
+        }
     </main>
 </div>
 
@@ -73,19 +73,77 @@
                  OnClose="HandleCloseCreateModal" 
                  OnTaskCreated="HandleTaskCreated" />
 
+<!-- Модальное окно создания проекта -->
+<BlazorTaskTracker.Components.Modals.ProjectCreateModal IsVisible="isCreateProjectModalVisible"
+                                                      OnClose="HandleCloseProjectModal"
+                                                      OnProjectCreated="HandleProjectCreated" />
+
 @code {
+    // Данные проектов
+    private List<Project> availableProjects = new();
+    private Project? selectedProject = null;
+    
     // Данные для Kanban доски
     private List<KanbanColumn> kanbanColumns = new();
     
-    // Состояние модального окна
+    // Состояние модальных окон
     private bool isCreateModalVisible = false;
+    private bool isCreateProjectModalVisible = false;
     
     // Ссылка на компонент KanbanBoard для переинициализации drag-and-drop
     private KanbanBoard? kanbanBoardRef;
     
     protected override void OnInitialized()
     {
+        InitializeProjects();
         InitializeKanbanData();
+        
+        // Автоматически выбираем первый проект, если он есть
+        if (availableProjects.Any())
+        {
+            selectedProject = availableProjects.First();
+            LoadProjectTasks();
+        }
+    }
+    
+    private void InitializeProjects()
+    {
+        availableProjects = new List<Project>
+        {
+            new Project
+            {
+                Id = "project-1",
+                Name = "TaskTracker Pro",
+                Description = "Система управления задачами и проектами",
+                Icon = "🚀",
+                Color = "bg-blue-500",
+                Members = new List<string> { "Анна Иванова", "Петр Сидоров", "Мария Петрова", "Иван Козлов" },
+                TaskCount = 7,
+                CreatedDate = DateTime.Now.AddDays(-30)
+            },
+            new Project
+            {
+                Id = "project-2",
+                Name = "Мобильное приложение",
+                Description = "Разработка iOS и Android приложения",
+                Icon = "📱",
+                Color = "bg-green-500",
+                Members = new List<string> { "Анна Иванова", "Петр Сидоров" },
+                TaskCount = 12,
+                CreatedDate = DateTime.Now.AddDays(-15)
+            },
+            new Project
+            {
+                Id = "project-3",
+                Name = "Дизайн система",
+                Description = "UI/UX компоненты и гайдлайны",
+                Icon = "🎨",
+                Color = "bg-purple-500",
+                Members = new List<string> { "Анна Иванова", "Мария Петрова" },
+                TaskCount = 5,
+                CreatedDate = DateTime.Now.AddDays(-7)
+            }
+        };
     }
     
     private void InitializeKanbanData()
@@ -96,92 +154,134 @@
             {
                 Id = "todo",
                 Title = "To Do",
-                Tasks = new List<KanbanTask>
-                {
-                    new KanbanTask
-                    {
-                        Id = "1",
-                        Title = "Создать дизайн главной страницы",
-                        Description = "Разработать макет главной страницы в Figma с учетом современных UX принципов",
-                        Tags = new List<string> { "Design", "Frontend", "Urgent" },
-                        Assignees = new List<string> { "Анна Иванова" },
-                        DueDate = DateTime.Now.AddDays(3),
-                        ColumnId = "todo"
-                    },
-                    new KanbanTask
-                    {
-                        Id = "2",
-                        Title = "Настроить CI/CD pipeline",
-                        Description = "Автоматизация деплоя и тестирования",
-                        Tags = new List<string> { "Backend", "DevOps" },
-                        Assignees = new List<string> { "Петр Сидоров" },
-                        DueDate = DateTime.Now.AddDays(5),
-                        ColumnId = "todo"
-                    },
-                    new KanbanTask
-                    {
-                        Id = "3",
-                        Title = "Написать документацию API",
-                        Tags = new List<string> { "Backend", "Documentation" },
-                        Assignees = new List<string> { "Мария Петрова" },
-                        DueDate = DateTime.Now.AddDays(7),
-                        ColumnId = "todo"
-                    }
-                }
+                Tasks = new List<KanbanTask>()
             },
             new KanbanColumn
             {
                 Id = "inprogress",
                 Title = "In Progress",
-                Tasks = new List<KanbanTask>
-                {
-                    new KanbanTask
-                    {
-                        Id = "4",
-                        Title = "Реализовать авторизацию",
-                        Description = "JWT токены, refresh tokens, роли пользователей",
-                        Tags = new List<string> { "Backend", "Feature" },
-                        Assignees = new List<string> { "Иван Козлов", "Петр Сидоров" },
-                        DueDate = DateTime.Now.AddDays(2),
-                        ColumnId = "inprogress"
-                    },
-                    new KanbanTask
-                    {
-                        Id = "5",
-                        Title = "Исправить баг с загрузкой файлов",
-                        Tags = new List<string> { "Bug", "Frontend" },
-                        Assignees = new List<string> { "Анна Иванова" },
-                        DueDate = DateTime.Now.AddDays(1),
-                        ColumnId = "inprogress"
-                    }
-                }
+                Tasks = new List<KanbanTask>()
             },
             new KanbanColumn
             {
                 Id = "done",
                 Title = "Done",
-                Tasks = new List<KanbanTask>
-                {
-                    new KanbanTask
-                    {
-                        Id = "6",
-                        Title = "Создать базу данных",
-                        Description = "Настройка PostgreSQL, миграции",
-                        Tags = new List<string> { "Backend", "Database" },
-                        Assignees = new List<string> { "Петр Сидоров" },
-                        ColumnId = "done"
-                    },
-                    new KanbanTask
-                    {
-                        Id = "7",
-                        Title = "Настроить проект",
-                        Tags = new List<string> { "Setup" },
-                        Assignees = new List<string> { "Иван Козлов" },
-                        ColumnId = "done"
-                    }
-                }
+                Tasks = new List<KanbanTask>()
             }
         };
+    }
+    
+    private void LoadProjectTasks()
+    {
+        if (selectedProject?.Id == "project-1")
+        {
+            // Задачи для первого проекта
+            kanbanColumns.First(c => c.Id == "todo").Tasks = new List<KanbanTask>
+            {
+                new KanbanTask
+                {
+                    Id = "1",
+                    Title = "Создать дизайн главной страницы",
+                    Description = "Разработать макет главной страницы в Figma с учетом современных UX принципов",
+                    Tags = new List<string> { "Design", "Frontend", "Urgent" },
+                    Assignees = new List<string> { "Анна Иванова" },
+                    DueDate = DateTime.Now.AddDays(3),
+                    ColumnId = "todo"
+                },
+                new KanbanTask
+                {
+                    Id = "2",
+                    Title = "Настроить CI/CD pipeline",
+                    Description = "Автоматизация деплоя и тестирования",
+                    Tags = new List<string> { "Backend", "DevOps" },
+                    Assignees = new List<string> { "Петр Сидоров" },
+                    DueDate = DateTime.Now.AddDays(5),
+                    ColumnId = "todo"
+                }
+            };
+            
+            kanbanColumns.First(c => c.Id == "inprogress").Tasks = new List<KanbanTask>
+            {
+                new KanbanTask
+                {
+                    Id = "4",
+                    Title = "Реализовать авторизацию",
+                    Description = "JWT токены, refresh tokens, роли пользователей",
+                    Tags = new List<string> { "Backend", "Feature" },
+                    Assignees = new List<string> { "Иван Козлов", "Петр Сидоров" },
+                    DueDate = DateTime.Now.AddDays(2),
+                    ColumnId = "inprogress"
+                }
+            };
+            
+            kanbanColumns.First(c => c.Id == "done").Tasks = new List<KanbanTask>
+            {
+                new KanbanTask
+                {
+                    Id = "6",
+                    Title = "Создать базу данных",
+                    Description = "Настройка PostgreSQL, миграции",
+                    Tags = new List<string> { "Backend", "Database" },
+                    Assignees = new List<string> { "Петр Сидоров" },
+                    ColumnId = "done"
+                }
+            };
+        }
+        else
+        {
+            // Для других проектов - пустые колонки
+            foreach (var column in kanbanColumns)
+            {
+                column.Tasks.Clear();
+            }
+        }
+        
+        UpdateProjectTaskCounts();
+    }
+    
+    private void UpdateProjectTaskCounts()
+    {
+        if (selectedProject != null)
+        {
+            var totalTasks = kanbanColumns.Sum(c => c.Tasks.Count);
+            selectedProject.TaskCount = totalTasks;
+            
+            // Обновляем количество в списке проектов
+            var projectInList = availableProjects.FirstOrDefault(p => p.Id == selectedProject.Id);
+            if (projectInList != null)
+            {
+                projectInList.TaskCount = totalTasks;
+            }
+        }
+    }
+    
+    // Обработчики событий для проектов
+    private void HandleProjectSelected(Project project)
+    {
+        Console.WriteLine($"🎯 Выбран проект: {project.Name}");
+        selectedProject = project;
+        LoadProjectTasks();
+        StateHasChanged();
+    }
+    
+    private void HandleCreateProject()
+    {
+        Console.WriteLine("➕ Открываем модальное окно создания проекта");
+        isCreateProjectModalVisible = true;
+    }
+    
+    private void HandleCloseProjectModal()
+    {
+        isCreateProjectModalVisible = false;
+    }
+    
+    private void HandleProjectCreated(Project newProject)
+    {
+        Console.WriteLine($"✅ Создан новый проект: {newProject.Name}");
+        availableProjects.Add(newProject);
+        selectedProject = newProject;
+        LoadProjectTasks();
+        StateHasChanged();
     }
     
     // Обработчики событий для Header компонента
@@ -218,6 +318,9 @@
         {
             todoColumn.Tasks.Add(newTask);
             Console.WriteLine($"📋 Задача добавлена в колонку '{todoColumn.Title}'. Всего задач: {todoColumn.Tasks.Count}");
+            
+            // Обновляем счетчик задач в проекте
+            UpdateProjectTaskCounts();
             
             // Обновляем UI
             StateHasChanged();
