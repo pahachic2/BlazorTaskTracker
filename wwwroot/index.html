@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BlazorTaskTracker</title>
+    <base href="/" />
+    <link href="app.css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <HeadOutlet />
+</head>
+
+<body>
+    <div id="app">
+        <div class="flex items-center justify-center min-h-screen">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Загрузка приложения...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui" style="display: none;">
+        <div class="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg max-w-md">
+                <h3 class="text-lg font-semibold text-red-600 mb-2">Произошла ошибка</h3>
+                <p class="text-gray-700 mb-4">Произошла необработанная ошибка. Перезагрузите страницу.</p>
+                <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" onclick="location.reload()">
+                    Перезагрузить
+                </button>
+                <button class="ml-2 text-gray-600 hover:text-gray-800" onclick="document.getElementById('blazor-error-ui').style.display='none'">
+                    Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script src="js/kanban-drag-drop.js"></script>
+</body>
+
+</html> 
