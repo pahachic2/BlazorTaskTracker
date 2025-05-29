@@ -1,4 +1,4 @@
-namespace BlazorTaskTracker.Models
+namespace TaskTracker.Web.Models
 {
     public class Project
     {

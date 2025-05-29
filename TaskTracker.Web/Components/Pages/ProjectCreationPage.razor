@@ -1,8 +1,8 @@
 @page "/"
 @page "/projects"
 @inject NavigationManager NavigationManager
-@using BlazorTaskTracker.Components.Layout
-@using BlazorTaskTracker.Models
+@using TaskTracker.Web.Components.Layout
+@using TaskTracker.Web.Models
 
 <div class="flex h-screen bg-gray-50">
     <!-- Новая боковая панель с проектами -->
@@ -74,7 +74,7 @@
                  OnTaskCreated="HandleTaskCreated" />
 
 <!-- Модальное окно создания проекта -->
-<BlazorTaskTracker.Components.Modals.ProjectCreateModal IsVisible="isCreateProjectModalVisible"
+<TaskTracker.Web.Components.Modals.ProjectCreateModal IsVisible="isCreateProjectModalVisible"
                                                       OnClose="HandleCloseProjectModal"
                                                       OnProjectCreated="HandleProjectCreated" />
 
