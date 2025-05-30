@@ -21,6 +21,7 @@ builder.Services.Configure<JwtSettings>(
 builder.Services.AddScoped(typeof(IDatabaseService<>), typeof(MongoDatabaseService<>));
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IKanbanService, KanbanService>();
 
 // Настраиваем аутентификацию
 var jwtSettings = builder.Configuration.GetSection("JWT").Get<JwtSettings>();
@@ -90,6 +91,7 @@ app.UseAuthorization();
 
 // Регистрируем auth endpoints
 app.MapAuthEndpoints();
+app.MapEndpointGroups();
 
 // Healthcheck endpoint
 app.MapGet("/health", () => new { Status = "Healthy", Timestamp = DateTime.UtcNow })
