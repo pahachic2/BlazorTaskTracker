@@ -118,7 +118,7 @@
                 Color = "bg-blue-500",
                 Members = new List<string> { "Анна Иванова", "Петр Сидоров", "Мария Петрова", "Иван Козлов" },
                 TaskCount = 7,
-                CreatedDate = DateTime.Now.AddDays(-30)
+                CreatedAt = DateTime.Now.AddDays(-30)
             },
             new Project
             {
@@ -129,7 +129,7 @@
                 Color = "bg-green-500",
                 Members = new List<string> { "Анна Иванова", "Петр Сидоров" },
                 TaskCount = 12,
-                CreatedDate = DateTime.Now.AddDays(-15)
+                CreatedAt = DateTime.Now.AddDays(-15)
             },
             new Project
             {
@@ -140,7 +140,7 @@
                 Color = "bg-purple-500",
                 Members = new List<string> { "Анна Иванова", "Мария Петрова" },
                 TaskCount = 5,
-                CreatedDate = DateTime.Now.AddDays(-7)
+                CreatedAt = DateTime.Now.AddDays(-7)
             }
         };
     }
@@ -152,19 +152,19 @@
             new KanbanColumn
             {
                 Id = "todo",
-                Title = "To Do",
+                Name = "To Do",
                 Tasks = new List<KanbanTask>()
             },
             new KanbanColumn
             {
                 Id = "inprogress",
-                Title = "In Progress",
+                Name = "In Progress",
                 Tasks = new List<KanbanTask>()
             },
             new KanbanColumn
             {
                 Id = "done",
-                Title = "Done",
+                Name = "Done",
                 Tasks = new List<KanbanTask>()
             }
         };
@@ -183,7 +183,7 @@
                     Title = "Создать дизайн главной страницы",
                     Description = "Разработать макет главной страницы в Figma с учетом современных UX принципов",
                     Tags = new List<string> { "Design", "Frontend", "Urgent" },
-                    Assignees = new List<string> { "Анна Иванова" },
+                    AssigneeIds = new List<string> { "Анна Иванова" },
                     DueDate = DateTime.Now.AddDays(3),
                     ColumnId = "todo"
                 },
@@ -193,7 +193,7 @@
                     Title = "Настроить CI/CD pipeline",
                     Description = "Автоматизация деплоя и тестирования",
                     Tags = new List<string> { "Backend", "DevOps" },
-                    Assignees = new List<string> { "Петр Сидоров" },
+                    AssigneeIds = new List<string> { "Петр Сидоров" },
                     DueDate = DateTime.Now.AddDays(5),
                     ColumnId = "todo"
                 }
@@ -207,7 +207,7 @@
                     Title = "Реализовать авторизацию",
                     Description = "JWT токены, refresh tokens, роли пользователей",
                     Tags = new List<string> { "Backend", "Feature" },
-                    Assignees = new List<string> { "Иван Козлов", "Петр Сидоров" },
+                    AssigneeIds = new List<string> { "Иван Козлов", "Петр Сидоров" },
                     DueDate = DateTime.Now.AddDays(2),
                     ColumnId = "inprogress"
                 }
@@ -221,7 +221,7 @@
                     Title = "Создать базу данных",
                     Description = "Настройка PostgreSQL, миграции",
                     Tags = new List<string> { "Backend", "Database" },
-                    Assignees = new List<string> { "Петр Сидоров" },
+                    AssigneeIds = new List<string> { "Петр Сидоров" },
                     ColumnId = "done"
                 }
             };
@@ -316,7 +316,7 @@
         if (todoColumn != null)
         {
             todoColumn.Tasks.Add(newTask);
-            Console.WriteLine($"📋 Задача добавлена в колонку '{todoColumn.Title}'. Всего задач: {todoColumn.Tasks.Count}");
+            Console.WriteLine($"📋 Задача добавлена в колонку '{todoColumn.Name}'. Всего задач: {todoColumn.Tasks.Count}");
             
             // Обновляем счетчик задач в проекте
             UpdateProjectTaskCounts();

@@ -11,7 +11,7 @@
              class="kanban-column flex-shrink-0 w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
             <!-- Заголовок колонки -->
             <div class="flex items-center justify-between mb-4">
-                <h3 class="font-semibold text-gray-700 text-lg">@column.Title</h3>
+                <h3 class="font-semibold text-gray-700 text-lg">@column.Name</h3>
                 <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
                     @column.Tasks.Count
                 </span>
@@ -31,7 +31,7 @@
                          @onclick:stopPropagation="false">
                         
                         <!-- Теги задачи -->
-                        @if (task.Tags.Any())
+                        @if (task.Tags?.Any() == true)
                         {
                             <div class="flex flex-wrap gap-1 mb-3">
                                 @foreach (var tag in task.Tags)
@@ -72,21 +72,21 @@
                             }
                             
                             <!-- Аватары исполнителей -->
-                            @if (task.Assignees.Any())
+                            @if (task.AssigneeIds?.Any() == true)
                             {
                                 <div class="flex -space-x-1">
-                                    @foreach (var assignee in task.Assignees.Take(3))
+                                    @foreach (var assigneeId in task.AssigneeIds.Take(3))
                                     {
-                                        <div class="w-6 h-6 rounded-full @GetAssigneeColor(assignee) flex items-center justify-center border-2 border-white text-white text-xs font-medium"
-                                             title="@assignee">
-                                            @assignee.Substring(0, 1).ToUpper()
+                                        <div class="w-6 h-6 rounded-full @GetAssigneeColor(assigneeId) flex items-center justify-center border-2 border-white text-white text-xs font-medium"
+                                             title="@assigneeId">
+                                            @assigneeId.Substring(0, 1).ToUpper()
                                         </div>
                                     }
-                                    @if (task.Assignees.Count > 3)
+                                    @if (task.AssigneeIds.Count > 3)
                                     {
                                         <div class="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center border-2 border-white text-white text-xs font-medium"
-                                             title="Еще @(task.Assignees.Count - 3)">
-                                            +@(task.Assignees.Count - 3)
+                                             title="Еще @(task.AssigneeIds.Count - 3)">
+                                            +@(task.AssigneeIds.Count - 3)
                                         </div>
                                     }
                                 </div>
