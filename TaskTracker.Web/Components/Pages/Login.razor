@@ -105,6 +105,16 @@
     private string errorMessage = string.Empty;
     private bool isLoading = false;
 
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        if (!string.IsNullOrEmpty(token))
+        {
+            Navigation.NavigateTo("/projects");
+        }
+        await base.OnInitializedAsync();
+    }
+
     private async Task HandleLogin()
     {
         isLoading = true;
