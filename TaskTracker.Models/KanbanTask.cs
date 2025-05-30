@@ -14,7 +14,7 @@ namespace TaskTracker.Models
         [BsonRepresentation(BsonType.ObjectId)] // Assuming ColumnId is an ObjectId string
         [BsonElement("columnId")]
         public string ColumnId { get; set; } = string.Empty;
-        
+
         [BsonRepresentation(BsonType.ObjectId)] // Assuming ProjectId is an ObjectId string
         [BsonElement("projectId")]
         public string ProjectId { get; set; } = string.Empty;
@@ -37,7 +37,7 @@ namespace TaskTracker.Models
 
         [BsonElement("assigneeIds")]
         [BsonIgnoreIfNull] // Assuming assignees are user IDs (ObjectIds)
-        public List<string>? AssigneeIds { get; set; } 
+        public List<string>? AssigneeIds { get; set; }
 
         [BsonElement("tags")]
         [BsonIgnoreIfNull]

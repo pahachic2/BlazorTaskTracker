@@ -9,7 +9,7 @@ namespace TaskTracker.Api.Endpoints
 {
     public class KanbanEndpoints : IEndpointGroup
     {
-        public void MapEndpoints(IEndpointRouteBuilder app)
+        public void MapEndpoints(WebApplication app)
         {
             var group = app.MapGroup("/api")
                            .RequireAuthorization(); // Apply authorization to all endpoints in this group
@@ -19,7 +19,7 @@ namespace TaskTracker.Api.Endpoints
                 var userId = GetUserId(httpContext);
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Results.Unauthorized(); 
+                    return Results.Unauthorized();
                 }
 
                 var projects = await kanbanService.GetProjectsByUserIdAsync(userId);
