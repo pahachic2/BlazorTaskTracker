@@ -1,22 +1,22 @@
-@page "/login"
+@page "/register"
 @using TaskTracker.Models.DTOs
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
 
-<PageTitle>Вход - TaskTracker</PageTitle>
+<PageTitle>Регистрация - TaskTracker</PageTitle>
 
 <div class="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
         <div class="text-center">
             <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0 0h3m-3 0h-3m-3-6V4a2 2 0 012-2h2a2 2 0 012 2v5M7 9V4a2 2 0 012-2h2a2 2 0 012 2v5m6 8a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
             </div>
-            <h2 class="text-3xl font-bold text-gray-900">Добро пожаловать</h2>
+            <h2 class="text-3xl font-bold text-gray-900">Создать аккаунт</h2>
             <p class="mt-2 text-sm text-gray-600">
-                Войдите в свой аккаунт TaskTracker
+                Присоединяйтесь к TaskTracker для эффективного управления задачами
             </p>
         </div>
 
@@ -32,8 +32,20 @@
                     </div>
                 </div>
             }
+            
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div class="flex">
+                        <svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <p class="ml-3 text-sm text-green-700">@successMessage</p>
+                    </div>
+                </div>
+            }
 
-            <EditForm Model="loginRequest" OnValidSubmit="HandleLogin" class="space-y-6">
+            <EditForm Model="registerRequest" OnValidSubmit="HandleRegister" class="space-y-6">
                 <DataAnnotationsValidator />
                 
                 <div>
@@ -42,9 +54,21 @@
                     </label>
                     <InputText id="username" 
                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                              @bind-Value="loginRequest.Username" 
+                              @bind-Value="registerRequest.Username" 
                               placeholder="Введите имя пользователя" />
-                    <ValidationMessage For="@(() => loginRequest.Username)" class="mt-1 text-sm text-red-600" />
+                    <ValidationMessage For="@(() => registerRequest.Username)" class="mt-1 text-sm text-red-600" />
+                </div>
+                
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
+                        Email адрес
+                    </label>
+                    <InputText id="email" 
+                              type="email" 
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                              @bind-Value="registerRequest.Email" 
+                              placeholder="Введите email адрес" />
+                    <ValidationMessage For="@(() => registerRequest.Email)" class="mt-1 text-sm text-red-600" />
                 </div>
                 
                 <div>
@@ -54,9 +78,9 @@
                     <InputText id="password" 
                               type="password" 
                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
-                              @bind-Value="loginRequest.Password" 
+                              @bind-Value="registerRequest.Password" 
                               placeholder="Введите пароль" />
-                    <ValidationMessage For="@(() => loginRequest.Password)" class="mt-1 text-sm text-red-600" />
+                    <ValidationMessage For="@(() => registerRequest.Password)" class="mt-1 text-sm text-red-600" />
                 </div>
                 
                 <button type="submit" 
@@ -68,49 +92,42 @@
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <span>Вход в систему...</span>
+                        <span>Создание аккаунта...</span>
                     }
                     else
                     {
-                        <span>Войти</span>
+                        <span>Создать аккаунт</span>
                     }
                 </button>
             </EditForm>
             
-            <div class="mt-6">
-                <div class="relative">
-                    <div class="absolute inset-0 flex items-center">
-                        <div class="w-full border-t border-gray-300" />
-                    </div>
-                    <div class="relative flex justify-center text-sm">
-                        <span class="px-2 bg-white text-gray-500">Новый пользователь?</span>
-                    </div>
-                </div>
-                
-                <div class="mt-6 text-center">
-                    <a href="/register" 
-                       class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                        Создать аккаунт
+            <div class="mt-6 text-center">
+                <p class="text-sm text-gray-600">
+                    Уже есть аккаунт?
+                    <a href="/login" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+                        Войти
                     </a>
-                </div>
+                </p>
             </div>
         </div>
     </div>
 </div>
 
 @code {
-    private LoginRequest loginRequest = new();
+    private RegisterRequest registerRequest = new();
     private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
     private bool isLoading = false;
 
-    private async Task HandleLogin()
+    private async Task HandleRegister()
     {
         isLoading = true;
         errorMessage = string.Empty;
+        successMessage = string.Empty;
 
         try
         {
-            var response = await Http.PostAsJsonAsync("api/auth/login", loginRequest);
+            var response = await Http.PostAsJsonAsync("api/auth/register", registerRequest);
             
             if (response.IsSuccessStatusCode)
             {
@@ -122,13 +139,17 @@
                     await JS.InvokeVoidAsync("localStorage.setItem", "authToken", authResponse.Token);
                     await JS.InvokeVoidAsync("localStorage.setItem", "username", authResponse.Username);
                     
-                    // Перенаправляем на главную страницу
+                    successMessage = "Регистрация прошла успешно! Перенаправление...";
+                    
+                    // Перенаправляем на главную страницу через 2 секунды
+                    await Task.Delay(2000);
                     Navigation.NavigateTo("/");
                 }
             }
             else
             {
-                errorMessage = "Неверное имя пользователя или пароль.";
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                errorMessage = "Ошибка регистрации. Возможно, пользователь с таким именем или email уже существует.";
             }
         }
         catch (Exception ex)
@@ -140,4 +161,4 @@
             isLoading = false;
         }
     }
-}
+} 

@@ -4,6 +4,8 @@ using TaskTracker.Api.Services;
 using TaskTracker.Api.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using TaskTracker.Models.DTOs;
+using TaskTracker.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +20,7 @@ builder.Services.Configure<JwtSettings>(
 // Регистрируем сервисы
 builder.Services.AddScoped(typeof(IDatabaseService<>), typeof(MongoDatabaseService<>));
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 // Настраиваем аутентификацию
 var jwtSettings = builder.Configuration.GetSection("JWT").Get<JwtSettings>();
@@ -84,5 +87,8 @@ else
 // Добавляем middleware для аутентификации и авторизации
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Регистрируем все группы эндпоинтов
+app.MapEndpointGroups();
 
 app.Run();
