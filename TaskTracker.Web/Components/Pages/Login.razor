@@ -1,3 +1,4 @@
+@page "/"
 @page "/login"
 @using TaskTracker.Models.DTOs
 @inject HttpClient Http
@@ -125,7 +126,7 @@
                     await JS.InvokeVoidAsync("localStorage.setItem", "email", authResponse.Email);
                     
                     // Перенаправляем на главную страницу
-                    Navigation.NavigateTo("/");
+                    Navigation.NavigateTo("/projects");
                 }
             }
             else
