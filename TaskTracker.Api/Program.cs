@@ -88,7 +88,13 @@ else
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Регистрируем все группы эндпоинтов
-app.MapEndpointGroups();
+// Регистрируем auth endpoints
+app.MapAuthEndpoints();
+
+// Healthcheck endpoint
+app.MapGet("/health", () => new { Status = "Healthy", Timestamp = DateTime.UtcNow })
+    .WithName("HealthCheck")
+    .WithSummary("Проверка состояния API")
+    .WithOpenApi();
 
 app.Run();

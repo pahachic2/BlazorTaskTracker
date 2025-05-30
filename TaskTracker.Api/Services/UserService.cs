@@ -48,7 +48,7 @@ public class UserService : IUserService
 
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
     {
-        var user = await GetUserByUsernameAsync(request.Username);
+        var user = await GetUserByEmailAsync(request.Email);
         
         if (user == null || !user.IsActive)
         {
@@ -71,6 +71,12 @@ public class UserService : IUserService
             Email = user.Email,
             ExpiresAt = DateTime.UtcNow.AddMinutes(30) // Из настроек JWT
         };
+    }
+
+    public async Task<User?> GetUserByEmailAsync(string email)
+    {
+        var users = await _databaseService.FindAsync(u => u.Email == email);
+        return users.FirstOrDefault();
     }
 
     public async Task<User?> GetUserByUsernameAsync(string username)
