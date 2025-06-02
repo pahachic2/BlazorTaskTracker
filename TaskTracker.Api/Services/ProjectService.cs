@@ -8,13 +8,16 @@ public class ProjectService : IProjectService
 {
     private readonly IDatabaseService<Project> _projectDatabase;
     private readonly IDatabaseService<UserProject> _userProjectDatabase;
+    private readonly IDatabaseService<KanbanColumn> _columnDatabase;
 
     public ProjectService(
         IDatabaseService<Project> projectDatabase,
-        IDatabaseService<UserProject> userProjectDatabase)
+        IDatabaseService<UserProject> userProjectDatabase,
+        IDatabaseService<KanbanColumn> columnDatabase)
     {
         _projectDatabase = projectDatabase;
         _userProjectDatabase = userProjectDatabase;
+        _columnDatabase = columnDatabase;
     }
 
     public async Task<List<ProjectResponse>> GetUserProjectsAsync(string userId)
@@ -78,6 +81,9 @@ public class ProjectService : IProjectService
         };
 
         await _userProjectDatabase.CreateAsync(userProject);
+
+        // Создаем колонки по умолчанию
+        await CreateDefaultColumnsAsync(project.Id);
 
         return MapToResponse(project);
     }
@@ -222,5 +228,30 @@ public class ProjectService : IProjectService
             OwnerId = project.OwnerId,
             UpdatedAt = project.UpdatedAt
         };
+    }
+
+    private async Task CreateDefaultColumnsAsync(string projectId)
+    {
+        var defaultColumns = new[]
+        {
+            new { Title = "К выполнению", Order = 1 },
+            new { Title = "В процессе", Order = 2 },
+            new { Title = "На проверке", Order = 3 },
+            new { Title = "Выполнено", Order = 4 }
+        };
+
+        foreach (var columnData in defaultColumns)
+        {
+            var column = new KanbanColumn
+            {
+                Title = columnData.Title,
+                ProjectId = projectId,
+                Order = columnData.Order,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _columnDatabase.CreateAsync(column);
+        }
     }
 } 

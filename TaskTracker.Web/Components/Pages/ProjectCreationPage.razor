@@ -3,6 +3,9 @@
 @inject IApiService ApiService
 @inject ILocalStorageService LocalStorage
 @inject IJSRuntime JSRuntime
+@using TaskTracker.Web.Components.Layout
+@using TaskTracker.Models.DTOs
+@using TaskTracker.Models
 
 <div class="flex h-screen bg-gray-50">
     <!-- Новая боковая панель с проектами -->
@@ -80,6 +83,12 @@
     OnClose="HandleCloseCreateModal"
     OnTaskCreated="HandleTaskCreated" />
 
+<!-- Модальное окно создания колонки -->
+<ColumnCreateModal IsVisible="isCreateColumnModalVisible"
+    ProjectId="@(selectedProject?.Id ?? "")"
+    OnClose="HandleCloseColumnModal"
+    OnColumnCreated="HandleColumnCreated" />
+
 <!-- Модальное окно создания проекта -->
 <ProjectCreateModal IsVisible="isCreateProjectModalVisible"
     OnClose="HandleCloseProjectModal"
@@ -96,6 +105,7 @@
     // Состояние модальных окон
     private bool isCreateModalVisible = false;
     private bool isCreateProjectModalVisible = false;
+    private bool isCreateColumnModalVisible = false;
 
     // Пользовательские данные
     private string currentUserName = "";
@@ -333,6 +343,55 @@
         }
     }
 
+    private void HandleAddColumn()
+    {
+        Console.WriteLine("Добавление новой колонки");
+        if (selectedProject == null)
+        {
+            Console.WriteLine("❌ Нет выбранного проекта для создания колонки");
+            return;
+        }
+        
+        Console.WriteLine($"📋 Открываем модальное окно создания колонки для проекта {selectedProject.Name}");
+        isCreateColumnModalVisible = true;
+    }
+
+    private void HandleCloseColumnModal()
+    {
+        isCreateColumnModalVisible = false;
+    }
+
+    private async void HandleColumnCreated(CreateColumnRequest columnRequest)
+    {
+        if (selectedProject == null) return;
+
+        Console.WriteLine($"✅ Создаем новую колонку: {columnRequest.Title}");
+
+        try
+        {
+            var createdColumn = await ApiService.CreateColumnAsync(columnRequest);
+            if (createdColumn != null)
+            {
+                Console.WriteLine($"✅ Колонка '{createdColumn.Title}' успешно создана");
+                
+                // Перезагружаем колонки для обновления данных
+                await LoadProjectColumnsAsync();
+                StateHasChanged();
+
+                // Переинициализируем drag-and-drop для новых колонок
+                if (kanbanBoardRef != null)
+                {
+                    Console.WriteLine("🔄 Переинициализация drag-and-drop для новой колонки...");
+                    await kanbanBoardRef.RefreshDragAndDrop();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка создания колонки: {ex.Message}");
+        }
+    }
+
     // Обработчики событий для KanbanBoard компонента
     private void HandleTaskClick(KanbanTask task)
     {
@@ -344,11 +403,6 @@
         Console.WriteLine($"Добавление задачи в колонку: {columnId}");
         // Можно также открыть модальное окно для этой колонки
         isCreateModalVisible = true;
-    }
-
-    private void HandleAddColumn()
-    {
-        Console.WriteLine("Добавление новой колонки");
     }
 
     private async void HandleTaskMoved(TaskMovedEventArgs eventArgs)

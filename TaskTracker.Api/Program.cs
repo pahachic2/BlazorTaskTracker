@@ -23,6 +23,7 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IKanbanService, KanbanService>();
+builder.Services.AddScoped<IColumnService, ColumnService>();
 builder.Services.AddScoped<DataSeederService>();
 
 // Настраиваем аутентификацию
@@ -99,6 +100,9 @@ app.MapProjectEndpoints();
 
 // Регистрируем kanban endpoints
 app.MapKanbanEndpoints();
+
+// Регистрируем column endpoints
+app.MapColumnEndpoints();
 
 // Заполнение базы данных тестовыми данными (только для разработки)
 if (app.Environment.IsDevelopment())

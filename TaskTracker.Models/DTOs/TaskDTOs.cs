@@ -117,4 +117,38 @@ public class ColumnResponse
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public List<TaskResponse> Tasks { get; set; } = new();
+}
+
+/// <summary>
+/// DTO для изменения порядка колонок
+/// </summary>
+public class ReorderColumnsRequest
+{
+    [Required(ErrorMessage = "Список колонок обязателен")]
+    public List<ColumnOrderItem> Columns { get; set; } = new();
+}
+
+/// <summary>
+/// Элемент для изменения порядка колонки
+/// </summary>
+public class ColumnOrderItem
+{
+    [Required(ErrorMessage = "ID колонки обязателен")]
+    public string Id { get; set; } = string.Empty;
+    
+    public int Order { get; set; } = 0;
+}
+
+/// <summary>
+/// DTO для краткого ответа с данными колонки (без задач)
+/// </summary>
+public class ColumnSummaryResponse
+{
+    public string Id { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string ProjectId { get; set; } = string.Empty;
+    public int Order { get; set; } = 0;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int TaskCount { get; set; } = 0;
 } 

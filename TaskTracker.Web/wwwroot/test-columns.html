@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестирование API Колонок</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .danger {
+            background: #dc3545;
+        }
+        .danger:hover {
+            background: #c82333;
+        }
+        .success {
+            background: #28a745;
+        }
+        .success:hover {
+            background: #218838;
+        }
+        .columns-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .column-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        .column-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        .task-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .task-item {
+            background: white;
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #007bff;
+            font-size: 12px;
+        }
+        .response {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success-response {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏗️ Тестирование API Колонок</h1>
+    
+    <div class="container">
+        <h2>🔐 Авторизация</h2>
+        <div class="form-group">
+            <label>API Base URL:</label>
+            <input type="text" id="apiUrl" value="https://localhost:7030/api" placeholder="https://localhost:7030/api">
+        </div>
+        <div class="form-group">
+            <label>JWT Token:</label>
+            <input type="text" id="authToken" placeholder="Вставьте JWT токен сюда">
+        </div>
+        <button onclick="testConnection()">🔍 Проверить соединение</button>
+        <button onclick="seedDatabase()" class="success">🌱 Заполнить БД тестовыми данными</button>
+        <div id="connectionResponse" class="response" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>📂 Управление Проектами</h2>
+        <button onclick="loadProjects()">📋 Загрузить проекты</button>
+        <div class="form-group">
+            <label>Выберите проект:</label>
+            <select id="projectSelect">
+                <option value="">Сначала загрузите проекты</option>
+            </select>
+        </div>
+        <div id="projectResponse" class="response" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>📋 Управление Колонками</h2>
+        
+        <h3>Создать новую колонку</h3>
+        <div class="form-group">
+            <label>Название колонки:</label>
+            <input type="text" id="columnTitle" placeholder="Название колонки">
+        </div>
+        <div class="form-group">
+            <label>Порядок:</label>
+            <input type="number" id="columnOrder" value="1" min="1">
+        </div>
+        <button onclick="createColumn()">➕ Создать колонку</button>
+        
+        <h3>Действия с колонками</h3>
+        <button onclick="loadColumns()">🔄 Загрузить колонки</button>
+        <button onclick="loadProjectColumns()">📂 Загрузить колонки проекта</button>
+        
+        <div id="columnResponse" class="response" style="display: none;"></div>
+    </div>
+
+    <div class="container">
+        <h2>🎯 Колонки Проекта</h2>
+        <div id="columnsDisplay">
+            <p>Выберите проект и нажмите "Загрузить колонки проекта"</p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = () => document.getElementById('apiUrl').value;
+        const AUTH_TOKEN = () => document.getElementById('authToken').value;
+        
+        function getHeaders() {
+            const token = AUTH_TOKEN();
+            return {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+            };
+        }
+
+        function showResponse(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `response ${isError ? 'error' : 'success-response'}`;
+            element.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+        }
+
+        async function testConnection() {
+            try {
+                const response = await fetch(`${API_URL()}/health`);
+                const data = await response.json();
+                showResponse('connectionResponse', `✅ Соединение успешно!\n${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResponse('connectionResponse', `❌ Ошибка соединения: ${error.message}`, true);
+            }
+        }
+
+        async function seedDatabase() {
+            try {
+                const response = await fetch(`${API_URL()}/seed-data`, {
+                    method: 'POST',
+                    headers: getHeaders()
+                });
+                const data = await response.json();
+                showResponse('connectionResponse', `🌱 База данных заполнена!\n${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                showResponse('connectionResponse', `❌ Ошибка заполнения БД: ${error.message}`, true);
+            }
+        }
+
+        async function loadProjects() {
+            try {
+                const response = await fetch(`${API_URL()}/projects`, {
+                    headers: getHeaders()
+                });
+                const projects = await response.json();
+                
+                const select = document.getElementById('projectSelect');
+                select.innerHTML = '<option value="">Выберите проект</option>';
+                
+                projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project.id;
+                    option.textContent = `${project.icon} ${project.name}`;
+                    select.appendChild(option);
+                });
+                
+                showResponse('projectResponse', `📋 Загружено ${projects.length} проектов`);
+            } catch (error) {
+                showResponse('projectResponse', `❌ Ошибка загрузки проектов: ${error.message}`, true);
+            }
+        }
+
+        async function createColumn() {
+            const projectId = document.getElementById('projectSelect').value;
+            const title = document.getElementById('columnTitle').value;
+            const order = parseInt(document.getElementById('columnOrder').value);
+
+            if (!projectId || !title) {
+                showResponse('columnResponse', '❌ Выберите проект и введите название колонки', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL()}/columns`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        title: title,
+                        projectId: projectId,
+                        order: order
+                    })
+                });
+
+                if (response.ok) {
+                    const column = await response.json();
+                    showResponse('columnResponse', `✅ Колонка создана!\n${JSON.stringify(column, null, 2)}`);
+                    document.getElementById('columnTitle').value = '';
+                    // Автоматически обновляем список колонок
+                    loadProjectColumns();
+                } else {
+                    const error = await response.text();
+                    showResponse('columnResponse', `❌ Ошибка: ${error}`, true);
+                }
+            } catch (error) {
+                showResponse('columnResponse', `❌ Ошибка создания колонки: ${error.message}`, true);
+            }
+        }
+
+        async function loadProjectColumns() {
+            const projectId = document.getElementById('projectSelect').value;
+            
+            if (!projectId) {
+                showResponse('columnResponse', '❌ Выберите проект', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL()}/columns/project/${projectId}`, {
+                    headers: getHeaders()
+                });
+                const columns = await response.json();
+                
+                showResponse('columnResponse', `📋 Загружено ${columns.length} колонок`);
+                displayColumns(columns);
+            } catch (error) {
+                showResponse('columnResponse', `❌ Ошибка загрузки колонок: ${error.message}`, true);
+            }
+        }
+
+        function displayColumns(columns) {
+            const container = document.getElementById('columnsDisplay');
+            
+            if (!columns || columns.length === 0) {
+                container.innerHTML = '<p>📭 Колонки не найдены</p>';
+                return;
+            }
+
+            const columnsHtml = columns.map(column => `
+                <div class="column-card">
+                    <div class="column-header">
+                        📋 ${column.title} (Порядок: ${column.order})
+                    </div>
+                    <div class="task-list">
+                        ${column.tasks && column.tasks.length > 0 
+                            ? column.tasks.map(task => `
+                                <div class="task-item">
+                                    <strong>${task.title}</strong>
+                                    ${task.tags.length > 0 ? `<br>🏷️ ${task.tags.join(', ')}` : ''}
+                                </div>
+                            `).join('')
+                            : '<p style="color: #6c757d; font-style: italic;">Задач нет</p>'
+                        }
+                    </div>
+                    <button onclick="deleteColumn('${column.id}')" class="danger" style="margin-top: 10px;">
+                        🗑️ Удалить
+                    </button>
+                </div>
+            `).join('');
+
+            container.innerHTML = `<div class="columns-list">${columnsHtml}</div>`;
+        }
+
+        async function deleteColumn(columnId) {
+            if (!confirm('Вы уверены, что хотите удалить эту колонку?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL()}/columns/${columnId}`, {
+                    method: 'DELETE',
+                    headers: getHeaders()
+                });
+
+                if (response.ok) {
+                    showResponse('columnResponse', `✅ Колонка удалена!`);
+                    loadProjectColumns(); // Обновляем список
+                } else {
+                    const error = await response.text();
+                    showResponse('columnResponse', `❌ Ошибка удаления: ${error}`, true);
+                }
+            } catch (error) {
+                showResponse('columnResponse', `❌ Ошибка: ${error.message}`, true);
+            }
+        }
+
+        // Автоматически тестируем соединение при загрузке страницы
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html> 

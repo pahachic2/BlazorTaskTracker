@@ -173,7 +173,7 @@ public class DataSeederService
     {
         var columns = new List<KanbanColumn>();
 
-        var columnNames = new[] { "To Do", "In Progress", "Done" };
+        var columnNames = new[] { "К выполнению", "В процессе", "На проверке", "Выполнено" };
 
         foreach (var project in projects)
         {
@@ -183,7 +183,7 @@ public class DataSeederService
                 {
                     Title = columnNames[i],
                     ProjectId = project.Id,
-                    Order = i,
+                    Order = i + 1, // Начинаем с 1
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -214,7 +214,7 @@ public class DataSeederService
                 Tags = new string[] { "Design", "Frontend", "Urgent" },
                 Assignees = new string[] { "Анна Иванова" },
                 DueDate = DateTime.UtcNow.AddDays(3),
-                ColumnIndex = 0, // To Do
+                ColumnIndex = 0, // К выполнению
                 Priority = TaskPriority.High
             },
             new {
@@ -223,7 +223,7 @@ public class DataSeederService
                 Tags = new string[] { "Backend", "DevOps" },
                 Assignees = new string[] { "Петр Сидоров" },
                 DueDate = DateTime.UtcNow.AddDays(5),
-                ColumnIndex = 0, // To Do
+                ColumnIndex = 0, // К выполнению
                 Priority = TaskPriority.Medium
             },
             new {
@@ -232,7 +232,7 @@ public class DataSeederService
                 Tags = new string[] { "Backend", "Feature" },
                 Assignees = new string[] { "Иван Козлов", "Петр Сидоров" },
                 DueDate = DateTime.UtcNow.AddDays(2),
-                ColumnIndex = 1, // In Progress
+                ColumnIndex = 1, // В процессе
                 Priority = TaskPriority.High
             },
             new {
@@ -241,7 +241,16 @@ public class DataSeederService
                 Tags = new string[] { "Backend", "Database" },
                 Assignees = new string[] { "Петр Сидоров" },
                 DueDate = (DateTime?)null,
-                ColumnIndex = 2, // Done
+                ColumnIndex = 3, // Выполнено
+                Priority = TaskPriority.Medium
+            },
+            new {
+                Title = "Провести тестирование API",
+                Description = "Unit тесты, интеграционные тесты",
+                Tags = new string[] { "Testing", "QA" },
+                Assignees = new string[] { "Мария Петрова" },
+                DueDate = DateTime.UtcNow.AddDays(7),
+                ColumnIndex = 2, // На проверке
                 Priority = TaskPriority.Medium
             }
         };
@@ -268,7 +277,8 @@ public class DataSeederService
                 {
                     0 => Models.TaskStatus.ToDo,
                     1 => Models.TaskStatus.InProgress,
-                    2 => Models.TaskStatus.Done,
+                    2 => Models.TaskStatus.Review,
+                    3 => Models.TaskStatus.Done,
                     _ => Models.TaskStatus.ToDo
                 },
                 CreatedAt = DateTime.UtcNow.AddDays(-i),
