@@ -1,7 +1,7 @@
 @page "/"
 @page "/login"
 @using TaskTracker.Models.DTOs
-@inject HttpClient Http
+@inject IApiService ApiService
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
 
@@ -85,6 +85,25 @@
                         <div class="w-full border-t border-gray-300" />
                     </div>
                     <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-white text-gray-500">Тестовые данные</span>
+                    </div>
+                </div>
+                
+                <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm text-blue-700 text-center">
+                        <strong>Для тестирования используйте:</strong><br />
+                        Email: <strong>anna@example.com</strong><br />
+                        Пароль: <strong>password123</strong>
+                    </p>
+                </div>
+            </div>
+            
+            <div class="mt-6">
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300" />
+                    </div>
+                    <div class="relative flex justify-center text-sm">
                         <span class="px-2 bg-white text-gray-500">Новый пользователь?</span>
                     </div>
                 </div>
@@ -101,7 +120,11 @@
 </div>
 
 @code {
-    private LoginRequest loginRequest = new();
+    private LoginRequest loginRequest = new()
+    {
+        Email = "anna@example.com",
+        Password = "password123"
+    };
     private string errorMessage = string.Empty;
     private bool isLoading = false;
 
@@ -122,21 +145,17 @@
 
         try
         {
-            var response = await Http.PostAsJsonAsync("api/auth/login", loginRequest);
+            var response = await ApiService.LoginAsync(loginRequest);
             
-            if (response.IsSuccessStatusCode)
+            if (response != null)
             {
-                var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>();
+                // Сохраняем данные авторизации через сервис
+                await LocalStorage.SetUserDataAsync(response.Username, response.Email);
                 
-                if (authResponse != null)
-                {
-                    // Сохраняем данные авторизации через сервис
-                    await LocalStorage.SetAuthTokenAsync(authResponse.Token);
-                    await LocalStorage.SetUserDataAsync(authResponse.Username, authResponse.Email);
-                    
-                    // Перенаправляем на главную страницу
-                    Navigation.NavigateTo("/projects");
-                }
+                Console.WriteLine($"✅ Успешный вход: {response.Username}");
+                
+                // Перенаправляем на главную страницу
+                Navigation.NavigateTo("/projects");
             }
             else
             {
@@ -145,6 +164,7 @@
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ Ошибка входа: {ex.Message}");
             errorMessage = $"Произошла ошибка: {ex.Message}";
         }
         finally

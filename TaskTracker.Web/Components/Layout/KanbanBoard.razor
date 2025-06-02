@@ -107,7 +107,7 @@
     @if (ShowAddColumnButton)
     {
         <div class="flex-shrink-0 w-80">
-            <button @onclick="OnAddColumn"
+            <button @onclick="HandleAddColumn"
                     class="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors flex flex-col items-center justify-center space-y-2">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -274,6 +274,15 @@
         Console.WriteLine($"🐭 BLAZOR: Наведение мыши на задачу: {task.Title} (ID: {task.Id})");
     }
 
+    private async Task HandleAddColumn()
+    {
+        Console.WriteLine("🔥 KANBAN: Нажата кнопка 'Добавить колонку'");
+        if (OnAddColumn.HasDelegate)
+        {
+            await OnAddColumn.InvokeAsync();
+        }
+    }
+
     [JSInvokable]
     public async Task OnTaskDropped(string taskId, string fromColumnId, string toColumnId)
     {
@@ -285,22 +294,11 @@
             FromColumnId = fromColumnId,
             ToColumnId = toColumnId
         };
+        
+        // Вызываем родительский обработчик
         await OnTaskMoved.InvokeAsync(args);
-        StateHasChanged(); // Ensure UI updates
         
-        // ИСПРАВЛЕНИЕ: Переинициализируем drag-and-drop для перемещенной задачи с новым columnId
-        try
-        {
-            await Task.Delay(200); // Даем время UI обновиться
-            await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initTaskDragDrop", $"task-{taskId}", taskId, toColumnId);
-            Console.WriteLine($"🔄 BLAZOR: Переинициализирован drag-and-drop для задачи {taskId} в колонке {toColumnId}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ BLAZOR: Ошибка переинициализации drag-and-drop: {ex.Message}");
-        }
-        
-        Console.WriteLine($"✅ BLAZOR: Задача перемещена и UI обновлен");
+        Console.WriteLine($"✅ BLAZOR: Событие drop обработано и передано родителю");
     }
 
     // Методы для стилизации
