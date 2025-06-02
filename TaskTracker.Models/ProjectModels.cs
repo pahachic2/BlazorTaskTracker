@@ -1,4 +1,4 @@
-namespace TaskTracker.Web.Models
+namespace TaskTracker.Models
 {
     public class Project
     {
