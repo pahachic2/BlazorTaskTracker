@@ -1,0 +1,61 @@
+@* Компонент профиля пользователя - пример использования LocalStorageService *@
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+
+<div class="bg-white shadow rounded-lg p-6">
+    @if (userData.IsAuthenticated)
+    {
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+                <span class="text-white font-semibold text-lg">
+                    @GetUserInitials()
+                </span>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900">@userData.Username</h3>
+                <p class="text-sm text-gray-600">@userData.Email</p>
+            </div>
+            <button @onclick="HandleLogout"
+                    class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                Выйти
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="text-center">
+            <p class="text-gray-600 mb-4">Вы не авторизованы</p>
+            <a href="/login" class="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                Войти в систему
+            </a>
+        </div>
+    }
+</div>
+
+@code {
+    private UserData userData = UserData.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userData = await LocalStorage.GetUserDataAsync();
+        await base.OnInitializedAsync();
+    }
+
+    private string GetUserInitials()
+    {
+        if (string.IsNullOrEmpty(userData.Username))
+            return "?";
+        
+        var parts = userData.Username.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        
+        return userData.Username[0].ToString().ToUpper();
+    }
+
+    private async Task HandleLogout()
+    {
+        await LocalStorage.ClearAuthDataAsync();
+        Navigation.NavigateTo("/login");
+    }
+} 

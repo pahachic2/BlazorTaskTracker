@@ -1,4 +1,3 @@
-@using TaskTracker.Web.Models
 @using Microsoft.JSInterop
 @inject IJSRuntime JSRuntime
 @implements IAsyncDisposable
@@ -322,7 +321,7 @@
     
     private string GetDueDateClasses(DateTime dueDate)
     {
-        var daysUntilDue = (dueDate.Date - DateTime.Now.Date).Days;
+        var daysUntilDue = (dueDate.Date - DateTime.UtcNow.Date).Days;
         
         if (daysUntilDue < 0)
             return "text-red-600 font-medium"; // Просрочено

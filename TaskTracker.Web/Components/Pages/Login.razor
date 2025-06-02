@@ -2,7 +2,7 @@
 @page "/login"
 @using TaskTracker.Models.DTOs
 @inject HttpClient Http
-@inject IJSRuntime JS
+@inject ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
 
 <PageTitle>Вход - TaskTracker</PageTitle>
@@ -107,7 +107,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        var token = await LocalStorage.GetAuthTokenAsync();
         if (!string.IsNullOrEmpty(token))
         {
             Navigation.NavigateTo("/projects");
@@ -130,10 +130,9 @@
                 
                 if (authResponse != null)
                 {
-                    // Сохраняем токен в localStorage
-                    await JS.InvokeVoidAsync("localStorage.setItem", "authToken", authResponse.Token);
-                    await JS.InvokeVoidAsync("localStorage.setItem", "username", authResponse.Username);
-                    await JS.InvokeVoidAsync("localStorage.setItem", "email", authResponse.Email);
+                    // Сохраняем данные авторизации через сервис
+                    await LocalStorage.SetAuthTokenAsync(authResponse.Token);
+                    await LocalStorage.SetUserDataAsync(authResponse.Username, authResponse.Email);
                     
                     // Перенаправляем на главную страницу
                     Navigation.NavigateTo("/projects");

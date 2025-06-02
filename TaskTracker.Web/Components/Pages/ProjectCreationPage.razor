@@ -1,40 +1,44 @@
 @page "/projects"
 @inject NavigationManager NavigationManager
+@inject IApiService ApiService
+@inject ILocalStorageService LocalStorage
+@inject IJSRuntime JSRuntime
 @using TaskTracker.Web.Components.Layout
-@using TaskTracker.Web.Models
+@using TaskTracker.Models.DTOs
+@using TaskTracker.Models
 
 <div class="flex h-screen bg-gray-50">
     <!-- Новая боковая панель с проектами -->
     <ProjectSidebar Projects="availableProjects"
-                   SelectedProject="selectedProject"
-                   UserName="Анна Иванова"
-                   UserEmail="anna@example.com"
-                   OnProjectSelected="HandleProjectSelected"
-                   OnCreateProject="HandleCreateProject"
-                   OnLogout="HandleLogout" />
-    
+        SelectedProject="selectedProject"
+        UserName="@currentUserName"
+        UserEmail="@currentUserEmail"
+        OnProjectSelected="HandleProjectSelected"
+        OnCreateProject="HandleCreateProject"
+        OnLogout="HandleLogout" />
+
     <!-- Основная часть (Main Content) -->
     <main class="flex-1 flex flex-col overflow-hidden">
         @if (selectedProject != null)
         {
             <!-- Используем компонент Header -->
-            <Header ProjectName="@selectedProject.Name" 
-                    ProjectDescription="@selectedProject.Description"
-                    UserName="Анна Иванова"
-                    UserEmail="anna@example.com"
-                    OnAddTaskClick="HandleAddTask"
-                    OnSearchChanged="HandleSearch"
-                    OnLogoutClick="HandleLogout" />
-            
+            <Header ProjectName="@selectedProject.Name"
+                ProjectDescription="@selectedProject.Description"
+                UserName="@currentUserName"
+                UserEmail="@currentUserEmail"
+                OnAddTaskClick="HandleAddTask"
+                OnSearchChanged="HandleSearch"
+                OnLogoutClick="HandleLogout" />
+
             <!-- Контент страницы -->
             <div class="flex-1 overflow-hidden">
                 <!-- Используем компонент KanbanBoard -->
-                <KanbanBoard @ref="kanbanBoardRef" 
-                            Columns="kanbanColumns" 
-                            OnTaskClick="HandleTaskClick"
-                            OnAddTaskToColumn="HandleAddTaskToColumn"
-                            OnAddColumn="HandleAddColumn"
-                            OnTaskMoved="HandleTaskMoved" />
+                <KanbanBoard @ref="kanbanBoardRef"
+                    Columns="kanbanColumns"
+                    OnTaskClick="HandleTaskClick"
+                    OnAddTaskToColumn="HandleAddTaskToColumn"
+                    OnAddColumn="HandleAddColumn"
+                    OnTaskMoved="HandleTaskMoved" />
             </div>
         }
         else
@@ -44,7 +48,11 @@
                 <div class="text-center max-w-md mx-auto">
                     <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"></path>
+                            <path stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  stroke-width="2"
+                                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z">
+                            </path>
                         </svg>
                     </div>
                     <h2 class="text-2xl font-semibold text-gray-900 mb-2">Добро пожаловать в TaskTracker!</h2>
@@ -56,7 +64,10 @@
                         <button @onclick="HandleCreateProject"
                                 class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                <path stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      stroke-width="2"
+                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                             </svg>
                             Создать первый проект
                         </button>
@@ -68,319 +79,308 @@
 </div>
 
 <!-- Модальное окно создания задачи -->
-<TaskCreateModal IsVisible="isCreateModalVisible" 
-                 OnClose="HandleCloseCreateModal" 
-                 OnTaskCreated="HandleTaskCreated" />
+<TaskCreateModal IsVisible="isCreateModalVisible"
+    OnClose="HandleCloseCreateModal"
+    OnTaskCreated="HandleTaskCreated" />
 
 <!-- Модальное окно создания проекта -->
-<TaskTracker.Web.Components.Modals.ProjectCreateModal IsVisible="isCreateProjectModalVisible"
-                                                      OnClose="HandleCloseProjectModal"
-                                                      OnProjectCreated="HandleProjectCreated" />
+<ProjectCreateModal IsVisible="isCreateProjectModalVisible"
+    OnClose="HandleCloseProjectModal"
+    OnProjectCreated="HandleProjectCreated" />
 
 @code {
-    // Данные проектов
+    // Данные проектов из API
     private List<Project> availableProjects = new();
     private Project? selectedProject = null;
-    
-    // Данные для Kanban доски
+
+    // Данные для Kanban доски из API
     private List<KanbanColumn> kanbanColumns = new();
-    
+
     // Состояние модальных окон
     private bool isCreateModalVisible = false;
     private bool isCreateProjectModalVisible = false;
-    
+
+    // Пользовательские данные
+    private string currentUserName = "";
+    private string currentUserEmail = "";
+
     // Ссылка на компонент KanbanBoard для переинициализации drag-and-drop
     private KanbanBoard? kanbanBoardRef;
-    
-    protected override void OnInitialized()
+
+    protected override async Task OnInitializedAsync()
     {
-        InitializeProjects();
-        InitializeKanbanData();
-        
+        await LoadUserDataAsync();
+        await LoadProjectsAsync();
+
         // Автоматически выбираем первый проект, если он есть
         if (availableProjects.Any())
         {
             selectedProject = availableProjects.First();
-            LoadProjectTasks();
+            await LoadProjectColumnsAsync();
         }
     }
-    
-    private void InitializeProjects()
+
+    private async Task LoadUserDataAsync()
     {
-        availableProjects = new List<Project>
+        var userData = await LocalStorage.GetUserDataAsync();
+        if (userData.IsAuthenticated)
         {
-            new Project
-            {
-                Id = "project-1",
-                Name = "TaskTracker Pro",
-                Description = "Система управления задачами и проектами",
-                Icon = "🚀",
-                Color = "bg-blue-500",
-                Members = new List<string> { "Анна Иванова", "Петр Сидоров", "Мария Петрова", "Иван Козлов" },
-                TaskCount = 7,
-                CreatedDate = DateTime.Now.AddDays(-30)
-            },
-            new Project
-            {
-                Id = "project-2",
-                Name = "Мобильное приложение",
-                Description = "Разработка iOS и Android приложения",
-                Icon = "📱",
-                Color = "bg-green-500",
-                Members = new List<string> { "Анна Иванова", "Петр Сидоров" },
-                TaskCount = 12,
-                CreatedDate = DateTime.Now.AddDays(-15)
-            },
-            new Project
-            {
-                Id = "project-3",
-                Name = "Дизайн система",
-                Description = "UI/UX компоненты и гайдлайны",
-                Icon = "🎨",
-                Color = "bg-purple-500",
-                Members = new List<string> { "Анна Иванова", "Мария Петрова" },
-                TaskCount = 5,
-                CreatedDate = DateTime.Now.AddDays(-7)
-            }
-        };
-    }
-    
-    private void InitializeKanbanData()
-    {
-        kanbanColumns = new List<KanbanColumn>
-        {
-            new KanbanColumn
-            {
-                Id = "todo",
-                Title = "To Do",
-                Tasks = new List<KanbanTask>()
-            },
-            new KanbanColumn
-            {
-                Id = "inprogress",
-                Title = "In Progress",
-                Tasks = new List<KanbanTask>()
-            },
-            new KanbanColumn
-            {
-                Id = "done",
-                Title = "Done",
-                Tasks = new List<KanbanTask>()
-            }
-        };
-    }
-    
-    private void LoadProjectTasks()
-    {
-        if (selectedProject?.Id == "project-1")
-        {
-            // Задачи для первого проекта
-            kanbanColumns.First(c => c.Id == "todo").Tasks = new List<KanbanTask>
-            {
-                new KanbanTask
-                {
-                    Id = "1",
-                    Title = "Создать дизайн главной страницы",
-                    Description = "Разработать макет главной страницы в Figma с учетом современных UX принципов",
-                    Tags = new List<string> { "Design", "Frontend", "Urgent" },
-                    Assignees = new List<string> { "Анна Иванова" },
-                    DueDate = DateTime.Now.AddDays(3),
-                    ColumnId = "todo"
-                },
-                new KanbanTask
-                {
-                    Id = "2",
-                    Title = "Настроить CI/CD pipeline",
-                    Description = "Автоматизация деплоя и тестирования",
-                    Tags = new List<string> { "Backend", "DevOps" },
-                    Assignees = new List<string> { "Петр Сидоров" },
-                    DueDate = DateTime.Now.AddDays(5),
-                    ColumnId = "todo"
-                }
-            };
-            
-            kanbanColumns.First(c => c.Id == "inprogress").Tasks = new List<KanbanTask>
-            {
-                new KanbanTask
-                {
-                    Id = "4",
-                    Title = "Реализовать авторизацию",
-                    Description = "JWT токены, refresh tokens, роли пользователей",
-                    Tags = new List<string> { "Backend", "Feature" },
-                    Assignees = new List<string> { "Иван Козлов", "Петр Сидоров" },
-                    DueDate = DateTime.Now.AddDays(2),
-                    ColumnId = "inprogress"
-                }
-            };
-            
-            kanbanColumns.First(c => c.Id == "done").Tasks = new List<KanbanTask>
-            {
-                new KanbanTask
-                {
-                    Id = "6",
-                    Title = "Создать базу данных",
-                    Description = "Настройка PostgreSQL, миграции",
-                    Tags = new List<string> { "Backend", "Database" },
-                    Assignees = new List<string> { "Петр Сидоров" },
-                    ColumnId = "done"
-                }
-            };
+            currentUserName = userData.Username ?? "Пользователь";
+            currentUserEmail = userData.Email ?? "";
         }
         else
         {
-            // Для других проектов - пустые колонки
-            foreach (var column in kanbanColumns)
-            {
-                column.Tasks.Clear();
-            }
+            // Если пользователь не авторизован, перенаправляем на страницу входа
+            NavigationManager.NavigateTo("/login");
         }
-        
-        UpdateProjectTaskCounts();
     }
-    
-    private void UpdateProjectTaskCounts()
+
+    private async Task LoadProjectsAsync()
     {
-        if (selectedProject != null)
+        try
         {
-            var totalTasks = kanbanColumns.Sum(c => c.Tasks.Count);
-            selectedProject.TaskCount = totalTasks;
-            
-            // Обновляем количество в списке проектов
-            var projectInList = availableProjects.FirstOrDefault(p => p.Id == selectedProject.Id);
-            if (projectInList != null)
-            {
-                projectInList.TaskCount = totalTasks;
-            }
+            var projects = await ApiService.GetUserProjectsAsync();
+            availableProjects = projects.Select(MapProjectResponseToProject).ToList();
+            Console.WriteLine($"📂 Загружено {availableProjects.Count} проектов из API");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка загрузки проектов: {ex.Message}");
+            // В случае ошибки показываем пустой список
+            availableProjects = new List<Project>();
         }
     }
-    
+
+    private async Task LoadProjectColumnsAsync()
+    {
+        if (selectedProject == null) return;
+
+        try
+        {
+            var columns = await ApiService.GetProjectColumnsAsync(selectedProject.Id);
+            kanbanColumns = columns.Select(MapColumnResponseToKanbanColumn).ToList();
+            Console.WriteLine($"📋 Загружено {kanbanColumns.Count} колонок для проекта {selectedProject.Name}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка загрузки колонок: {ex.Message}");
+            // В случае ошибки показываем пустые колонки
+            kanbanColumns = new List<KanbanColumn>();
+        }
+    }
+
+    // Маппинг DTO в модели для компонентов
+    private static Project MapProjectResponseToProject(ProjectResponse response)
+    {
+        return new Project
+        {
+            Id = response.Id,
+            Name = response.Name,
+            Description = response.Description,
+            Icon = response.Icon,
+            Color = response.Color,
+            Members = response.Members.ToList(),
+            TaskCount = response.TaskCount,
+            CreatedDate = response.CreatedDate
+        };
+    }
+
+    private static KanbanColumn MapColumnResponseToKanbanColumn(ColumnResponse response)
+    {
+        return new KanbanColumn
+        {
+            Id = response.Id,
+            Title = response.Title,
+            Tasks = response.Tasks.Select(MapTaskResponseToKanbanTask).ToList()
+        };
+    }
+
+    private static KanbanTask MapTaskResponseToKanbanTask(TaskResponse response)
+    {
+        return new KanbanTask
+        {
+            Id = response.Id,
+            Title = response.Title,
+            Description = response.Description,
+            Tags = response.Tags.ToList(),
+            Assignees = response.Assignees.ToList(),
+            DueDate = response.DueDate,
+            ColumnId = response.ColumnId
+        };
+    }
+
+    // Обратный маппинг для отправки в API
+    private static CreateTaskRequest MapKanbanTaskToCreateRequest(KanbanTask task, string projectId)
+    {
+        return new CreateTaskRequest
+        {
+            Title = task.Title,
+            Description = task.Description,
+            Tags = task.Tags,
+            Assignees = task.Assignees,
+            DueDate = task.DueDate,
+            ColumnId = task.ColumnId,
+            ProjectId = projectId,
+            Priority = TaskPriority.Medium
+        };
+    }
+
     // Обработчики событий для проектов
-    private void HandleProjectSelected(Project project)
+    private async void HandleProjectSelected(Project project)
     {
         Console.WriteLine($"🎯 Выбран проект: {project.Name}");
         selectedProject = project;
-        LoadProjectTasks();
+        await LoadProjectColumnsAsync();
         StateHasChanged();
     }
-    
+
     private void HandleCreateProject()
     {
         Console.WriteLine("➕ Открываем модальное окно создания проекта");
         isCreateProjectModalVisible = true;
     }
-    
+
     private void HandleCloseProjectModal()
     {
         isCreateProjectModalVisible = false;
     }
-    
-    private void HandleProjectCreated(Project newProject)
+
+    private async void HandleProjectCreated(Project newProject)
     {
         Console.WriteLine($"✅ Создан новый проект: {newProject.Name}");
-        availableProjects.Add(newProject);
-        selectedProject = newProject;
-        LoadProjectTasks();
-        StateHasChanged();
+        
+        try
+        {
+            var createRequest = new CreateProjectRequest
+            {
+                Name = newProject.Name,
+                Description = newProject.Description,
+                Icon = newProject.Icon,
+                Color = newProject.Color
+            };
+
+            var createdProject = await ApiService.CreateProjectAsync(createRequest);
+            if (createdProject != null)
+            {
+                await LoadProjectsAsync(); // Перезагружаем список проектов
+                selectedProject = availableProjects.FirstOrDefault(p => p.Id == createdProject.Id);
+                await LoadProjectColumnsAsync();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка создания проекта: {ex.Message}");
+        }
     }
-    
+
     // Обработчики событий для Header компонента
     private void HandleAddTask()
     {
         Console.WriteLine("🎯 Открываем модальное окно создания задачи");
         isCreateModalVisible = true;
     }
-    
+
     private void HandleSearch(string searchQuery)
     {
         Console.WriteLine($"Поиск: {searchQuery}");
     }
-    
-    private void HandleLogout()
+
+    private async Task HandleLogout()
     {
+        await LocalStorage.ClearAuthDataAsync();
         NavigationManager.NavigateTo("/login");
     }
-    
+
     // Обработчики для модального окна создания задачи
     private void HandleCloseCreateModal()
     {
         Console.WriteLine("🚪 Закрываем модальное окно создания задачи");
         isCreateModalVisible = false;
     }
-    
+
     private async void HandleTaskCreated(KanbanTask newTask)
     {
+        if (selectedProject == null) return;
+
         Console.WriteLine($"✅ Создана новая задача: {newTask.Title}");
-        
-        // Добавляем задачу в первую колонку (To Do)
-        var todoColumn = kanbanColumns.FirstOrDefault(c => c.Id == "todo");
-        if (todoColumn != null)
+
+        try
         {
-            todoColumn.Tasks.Add(newTask);
-            Console.WriteLine($"📋 Задача добавлена в колонку '{todoColumn.Title}'. Всего задач: {todoColumn.Tasks.Count}");
-            
-            // Обновляем счетчик задач в проекте
-            UpdateProjectTaskCounts();
-            
-            // Обновляем UI
-            StateHasChanged();
-            
-            // Переинициализируем drag-and-drop для новых карточек
-            if (kanbanBoardRef != null)
+            // Находим первую колонку (To Do)
+            var todoColumn = kanbanColumns.FirstOrDefault();
+            if (todoColumn != null)
             {
-                Console.WriteLine("🔄 Переинициализация drag-and-drop для новой задачи...");
-                await kanbanBoardRef.RefreshDragAndDrop();
+                newTask.ColumnId = todoColumn.Id;
+                var createRequest = MapKanbanTaskToCreateRequest(newTask, selectedProject.Id);
+                
+                var createdTask = await ApiService.CreateTaskAsync(createRequest);
+                if (createdTask != null)
+                {
+                    // Перезагружаем колонки для обновления данных
+                    await LoadProjectColumnsAsync();
+                    StateHasChanged();
+
+                    // Переинициализируем drag-and-drop для новых карточек
+                    if (kanbanBoardRef != null)
+                    {
+                        Console.WriteLine("🔄 Переинициализация drag-and-drop для новой задачи...");
+                        await kanbanBoardRef.RefreshDragAndDrop();
+                    }
+                }
             }
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка создания задачи: {ex.Message}");
+        }
     }
-    
+
     // Обработчики событий для KanbanBoard компонента
     private void HandleTaskClick(KanbanTask task)
     {
         Console.WriteLine($"Клик по задаче: {task.Title}");
     }
-    
+
     private void HandleAddTaskToColumn(string columnId)
     {
         Console.WriteLine($"Добавление задачи в колонку: {columnId}");
         // Можно также открыть модальное окно для этой колонки
         isCreateModalVisible = true;
     }
-    
+
     private void HandleAddColumn()
     {
         Console.WriteLine("Добавление новой колонки");
     }
-    
-    private void HandleTaskMoved(TaskMovedEventArgs eventArgs)
+
+    private async void HandleTaskMoved(TaskMovedEventArgs eventArgs)
     {
         try
         {
-            // Находим задачу в исходной колонке
-            var sourceColumn = kanbanColumns.FirstOrDefault(c => c.Id == eventArgs.FromColumnId);
-            var task = sourceColumn?.Tasks.FirstOrDefault(t => t.Id == eventArgs.TaskId);
-            
-            if (task != null && sourceColumn != null)
+            // Перемещаем задачу через API
+            var moveRequest = new MoveTaskRequest
             {
-                // Удаляем задачу из исходной колонки
-                sourceColumn.Tasks.Remove(task);
+                NewColumnId = eventArgs.ToColumnId,
+                NewOrder = 0 // Можно добавить логику для определения порядка
+            };
+
+            var movedTask = await ApiService.MoveTaskAsync(eventArgs.TaskId, moveRequest);
+            if (movedTask != null)
+            {
+                // Перезагружаем колонки для обновления данных
+                await LoadProjectColumnsAsync();
+                StateHasChanged();
                 
-                // Находим целевую колонку и добавляем задачу
-                var targetColumn = kanbanColumns.FirstOrDefault(c => c.Id == eventArgs.ToColumnId);
-                if (targetColumn != null)
-                {
-                    task.ColumnId = eventArgs.ToColumnId;
-                    targetColumn.Tasks.Add(task);
-                    
-                    Console.WriteLine($"Задача '{task.Title}' перемещена из '{eventArgs.FromColumnId}' в '{eventArgs.ToColumnId}'");
-                    
-                    // Обновляем UI
-                    StateHasChanged();
-                }
+                Console.WriteLine($"Задача '{movedTask.Title}' перемещена из '{eventArgs.FromColumnId}' в '{eventArgs.ToColumnId}'");
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Ошибка при перемещении задачи: {ex.Message}");
+            // В случае ошибки возвращаем задачу на исходное место
+            await LoadProjectColumnsAsync();
+            StateHasChanged();
         }
     }
 }

@@ -21,6 +21,9 @@ builder.Services.Configure<JwtSettings>(
 builder.Services.AddScoped(typeof(IDatabaseService<>), typeof(MongoDatabaseService<>));
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IKanbanService, KanbanService>();
+builder.Services.AddScoped<DataSeederService>();
 
 // Настраиваем аутентификацию
 var jwtSettings = builder.Configuration.GetSection("JWT").Get<JwtSettings>();
@@ -90,6 +93,26 @@ app.UseAuthorization();
 
 // Регистрируем auth endpoints
 app.MapAuthEndpoints();
+
+// Регистрируем project endpoints
+app.MapProjectEndpoints();
+
+// Регистрируем kanban endpoints
+app.MapKanbanEndpoints();
+
+// Заполнение базы данных тестовыми данными (только для разработки)
+if (app.Environment.IsDevelopment())
+{    
+    // Также добавляем endpoint для ручного заполнения
+    app.MapPost("/api/seed-data", async (DataSeederService seeder) =>
+    {
+        await seeder.SeedDataAsync();
+        return Results.Ok(new { Message = "База данных заполнена тестовыми данными" });
+    })
+    .WithName("SeedData")
+    .WithSummary("Заполнить базу данных тестовыми данными")
+    .WithOpenApi();
+}
 
 // Healthcheck endpoint
 app.MapGet("/health", () => new { Status = "Healthy", Timestamp = DateTime.UtcNow })
