@@ -245,9 +245,15 @@
             // Небольшая задержка, чтобы DOM успел обновиться
             await Task.Delay(100);
             
-            // Переинициализируем drag-and-drop для всех задач
+            // Переинициализируем drag-and-drop для всех колонок и задач
             foreach (var column in Columns)
             {
+                Console.WriteLine($"🏗️ BLAZOR: Переинициализация колонки: {column.Id} с {column.Tasks.Count} задачами");
+                
+                // Переинициализируем drop zone для колонки
+                await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initColumnDropZone", $"column-{column.Id}", column.Id, dotNetRef);
+                
+                // Переинициализируем drag для всех задач в колонке
                 foreach (var task in column.Tasks)
                 {
                     Console.WriteLine($"🔄 BLAZOR: Переинициализация задачи: {task.Id} в колонке {column.Id}");
@@ -368,6 +374,39 @@
         {
             Console.WriteLine("🔄 BLAZOR: Внешний вызов переинициализации drag-and-drop...");
             await ReinitializeDragAndDrop();
+        }
+        else
+        {
+            Console.WriteLine("⚠️ BLAZOR: JS не инициализирован, пробуем альтернативный метод...");
+            await ForceRefreshDragAndDrop();
+        }
+    }
+    
+    // Альтернативный метод принудительной переинициализации
+    private async Task ForceRefreshDragAndDrop()
+    {
+        try
+        {
+            Console.WriteLine("🔧 BLAZOR: Принудительная переинициализация через JavaScript...");
+            
+            // Вызываем глобальную функцию переинициализации
+            await JSRuntime.InvokeVoidAsync("reinitializeDragDrop");
+            
+            Console.WriteLine("✅ BLAZOR: Принудительная переинициализация завершена");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ BLAZOR: Ошибка принудительной переинициализации: {ex.Message}");
+            
+            // Fallback: пробуем обычную инициализацию
+            try
+            {
+                await InitializeDragAndDrop();
+            }
+            catch (Exception ex2)
+            {
+                Console.WriteLine($"❌ BLAZOR: Ошибка fallback инициализации: {ex2.Message}");
+            }
         }
     }
 }

@@ -332,7 +332,16 @@
                     if (kanbanBoardRef != null)
                     {
                         Console.WriteLine("🔄 Переинициализация drag-and-drop для новой задачи...");
+                        await Task.Delay(300); // Увеличиваем задержку
                         await kanbanBoardRef.RefreshDragAndDrop();
+                        
+                        // Дополнительная переинициализация через секунду
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(1000);
+                            await kanbanBoardRef.RefreshDragAndDrop();
+                            Console.WriteLine("🔄 Дополнительная переинициализация drag-and-drop выполнена");
+                        });
                     }
                 }
             }
@@ -382,7 +391,16 @@
                 if (kanbanBoardRef != null)
                 {
                     Console.WriteLine("🔄 Переинициализация drag-and-drop для новой колонки...");
+                    await Task.Delay(300); // Увеличиваем задержку
                     await kanbanBoardRef.RefreshDragAndDrop();
+                    
+                    // Дополнительная переинициализация через секунду
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(1000);
+                        await kanbanBoardRef.RefreshDragAndDrop();
+                        Console.WriteLine("🔄 Дополнительная переинициализация drag-and-drop для колонки выполнена");
+                    });
                 }
             }
         }
@@ -407,62 +425,49 @@
 
     private async void HandleTaskMoved(TaskMovedEventArgs eventArgs)
     {
-        Console.WriteLine($"🎯 Начало перемещения задачи {eventArgs.TaskId} из {eventArgs.FromColumnId} в {eventArgs.ToColumnId}");
+        Console.WriteLine($"🎯 Получено событие перемещения задачи {eventArgs.TaskId} из {eventArgs.FromColumnId} в {eventArgs.ToColumnId}");
         
         try
         {
-            // Сначала выполняем оптимистичное обновление UI
-            var sourceColumn = kanbanColumns.FirstOrDefault(c => c.Id == eventArgs.FromColumnId);
-            var targetColumn = kanbanColumns.FirstOrDefault(c => c.Id == eventArgs.ToColumnId);
-            var task = sourceColumn?.Tasks.FirstOrDefault(t => t.Id == eventArgs.TaskId);
-
-            if (task != null && sourceColumn != null && targetColumn != null)
+            // Отправляем изменение в API
+            var moveRequest = new MoveTaskRequest
             {
-                // Убираем задачу из исходной колонки
-                sourceColumn.Tasks.Remove(task);
+                NewColumnId = eventArgs.ToColumnId,
+                NewOrder = 0 // Можно добавить логику для определения порядка
+            };
+
+            Console.WriteLine($"🚀 Отправляем запрос на перемещение задачи через API...");
+            var movedTask = await ApiService.MoveTaskAsync(eventArgs.TaskId, moveRequest);
+            
+            if (movedTask != null)
+            {
+                Console.WriteLine($"✅ Задача '{movedTask.Title}' успешно перемещена через API");
                 
-                // Обновляем ColumnId задачи
-                task.ColumnId = eventArgs.ToColumnId;
-                
-                // Добавляем в целевую колонку
-                targetColumn.Tasks.Add(task);
-                
-                // Обновляем UI
+                // Перезагружаем колонки для обновления данных
+                await LoadProjectColumnsAsync();
                 StateHasChanged();
                 
-                Console.WriteLine($"✅ Оптимистичное обновление UI выполнено");
-
-                // Теперь отправляем изменение в API
-                var moveRequest = new MoveTaskRequest
+                // Переинициализируем drag-and-drop
+                if (kanbanBoardRef != null)
                 {
-                    NewColumnId = eventArgs.ToColumnId,
-                    NewOrder = targetColumn.Tasks.Count - 1
-                };
-
-                var movedTask = await ApiService.MoveTaskAsync(eventArgs.TaskId, moveRequest);
-                if (movedTask != null)
-                {
-                    Console.WriteLine($"✅ Задача '{movedTask.Title}' успешно перемещена через API");
-                    
-                    // Небольшая задержка перед переинициализацией drag-and-drop
-                    await Task.Delay(100);
-                    
-                    // Переинициализируем drag-and-drop только для перемещенной задачи
-                    if (kanbanBoardRef != null)
-                    {
-                        await kanbanBoardRef.RefreshDragAndDrop();
-                    }
+                    await Task.Delay(200); // Даем время UI обновиться
+                    await kanbanBoardRef.RefreshDragAndDrop();
                 }
-                else
-                {
-                    Console.WriteLine("❌ API вернул null, откатываем изменения");
-                    // Откатываем изменения если API вернул ошибку
-                    await RollbackTaskMove(task, sourceColumn, targetColumn);
-                }
+                
+                Console.WriteLine($"✅ UI обновлен после успешного перемещения");
             }
             else
             {
-                Console.WriteLine("❌ Не удалось найти задачу или колонки для перемещения");
+                Console.WriteLine("❌ API вернул null - перемещение не удалось");
+                // Перезагружаем данные для восстановления правильного состояния
+                await LoadProjectColumnsAsync();
+                StateHasChanged();
+                
+                if (kanbanBoardRef != null)
+                {
+                    await Task.Delay(200);
+                    await kanbanBoardRef.RefreshDragAndDrop();
+                }
             }
         }
         catch (Exception ex)
@@ -481,29 +486,5 @@
                 await kanbanBoardRef.RefreshDragAndDrop();
             }
         }
-    }
-
-    private async Task RollbackTaskMove(KanbanTask task, KanbanColumn sourceColumn, KanbanColumn targetColumn)
-    {
-        // Убираем задачу из целевой колонки
-        targetColumn.Tasks.Remove(task);
-        
-        // Возвращаем исходный ColumnId
-        task.ColumnId = sourceColumn.Id;
-        
-        // Возвращаем в исходную колонку
-        sourceColumn.Tasks.Add(task);
-        
-        // Обновляем UI
-        StateHasChanged();
-        
-        // Переинициализируем drag-and-drop
-        if (kanbanBoardRef != null)
-        {
-            await Task.Delay(100);
-            await kanbanBoardRef.RefreshDragAndDrop();
-        }
-        
-        Console.WriteLine("🔄 Откат перемещения задачи выполнен");
     }
 }

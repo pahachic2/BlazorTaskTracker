@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестирование Drag and Drop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="app.css" rel="stylesheet" />
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 mb-8">Тестирование Drag and Drop</h1>
+        
+        <div class="bg-white p-6 rounded-lg shadow-sm mb-8">
+            <h2 class="text-xl font-semibold mb-4">Отладочная информация</h2>
+            <div class="flex space-x-4">
+                <button onclick="reinitializeDragDrop()" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    Переинициализировать Drag & Drop
+                </button>
+                <button onclick="checkDragDropStatus()" 
+                        class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                    Проверить статус
+                </button>
+                <button onclick="console.clear()" 
+                        class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+                    Очистить консоль
+                </button>
+            </div>
+            <div id="status" class="mt-4 p-3 bg-gray-50 rounded text-sm"></div>
+        </div>
+
+        <!-- Тестовая канбан доска -->
+        <div class="flex space-x-6 overflow-x-auto">
+            <!-- Колонка 1 -->
+            <div id="column-test1" class="kanban-column flex-shrink-0 w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-gray-700 text-lg">К выполнению</h3>
+                    <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">2</span>
+                </div>
+                
+                <div class="space-y-3 flex-1 overflow-y-auto">
+                    <div id="task-test1" data-task-id="test1" data-column-id="test1" 
+                         class="kanban-task bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow">
+                        <h4 class="font-medium text-gray-900 text-sm mb-2">Тестовая задача 1</h4>
+                        <p class="text-gray-600 text-xs mb-3">Попробуйте перетащить эту задачу в другую колонку</p>
+                        <div class="flex items-center justify-between">
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">Тест</span>
+                        </div>
+                    </div>
+                    
+                    <div id="task-test2" data-task-id="test2" data-column-id="test1" 
+                         class="kanban-task bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow">
+                        <h4 class="font-medium text-gray-900 text-sm mb-2">Тестовая задача 2</h4>
+                        <p class="text-gray-600 text-xs mb-3">И эту тоже можно перетаскивать</p>
+                        <div class="flex items-center justify-between">
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">Готово</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Колонка 2 -->
+            <div id="column-test2" class="kanban-column flex-shrink-0 w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-gray-700 text-lg">В процессе</h3>
+                    <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">0</span>
+                </div>
+                
+                <div class="space-y-3 flex-1 overflow-y-auto min-h-32">
+                    <!-- Пустая колонка для тестирования drop -->
+                </div>
+            </div>
+
+            <!-- Колонка 3 -->
+            <div id="column-test3" class="kanban-column flex-shrink-0 w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-gray-700 text-lg">Выполнено</h3>
+                    <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">0</span>
+                </div>
+                
+                <div class="space-y-3 flex-1 overflow-y-auto min-h-32">
+                    <!-- Пустая колонка для тестирования drop -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/kanban-drag-drop.js"></script>
+    <script>
+        function checkDragDropStatus() {
+            const status = document.getElementById('status');
+            const tasks = document.querySelectorAll('.kanban-task');
+            const columns = document.querySelectorAll('.kanban-column');
+            
+            let statusText = `
+                <strong>Статус Drag & Drop:</strong><br>
+                - Задач найдено: ${tasks.length}<br>
+                - Колонок найдено: ${columns.length}<br>
+                - Инициализировано: ${window.kanbanDragDrop ? window.kanbanDragDrop.isInitialized : 'не определено'}<br>
+                - MutationObserver: ${window.kanbanDragDrop && window.kanbanDragDrop.observer ? 'активен' : 'неактивен'}<br><br>
+                <strong>Задачи:</strong><br>
+            `;
+            
+            tasks.forEach((task, index) => {
+                const isDraggable = task.draggable;
+                const hasHandlers = task._dragStartHandler !== undefined;
+                statusText += `${index + 1}. ${task.id}: draggable=${isDraggable}, handlers=${hasHandlers}<br>`;
+            });
+            
+            statusText += '<br><strong>Колонки:</strong><br>';
+            columns.forEach((column, index) => {
+                const hasHandlers = column._dropHandler !== undefined;
+                statusText += `${index + 1}. ${column.id}: handlers=${hasHandlers}<br>`;
+            });
+            
+            status.innerHTML = statusText;
+        }
+
+        // Автоматическая инициализация при загрузке
+        setTimeout(() => {
+            console.log('🔧 Инициализируем тестовую drag-and-drop систему...');
+            
+            // Инициализируем колонки
+            window.kanbanDragDrop.initColumnDropZone('column-test1', 'test1', null);
+            window.kanbanDragDrop.initColumnDropZone('column-test2', 'test2', null);
+            window.kanbanDragDrop.initColumnDropZone('column-test3', 'test3', null);
+            
+            // Инициализируем задачи
+            window.kanbanDragDrop.initTaskDragDrop('task-test1', 'test1', 'test1');
+            window.kanbanDragDrop.initTaskDragDrop('task-test2', 'test2', 'test1');
+            
+            console.log('✅ Тестовая система инициализирована');
+            checkDragDropStatus();
+        }, 1000);
+    </script>
+</body>
+</html> 

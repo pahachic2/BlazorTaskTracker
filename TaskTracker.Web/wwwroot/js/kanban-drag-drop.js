@@ -121,44 +121,62 @@ window.kanbanDragDrop = {
         };
 
         columnElement._dropHandler = function (e) {
+            console.log(`🎯 JS: DROP событие получено в колонку: ${columnId}`, e);
+            
+            // ВАЖНО: Предотвращаем браузерное поведение по умолчанию
             e.preventDefault();
+            e.stopPropagation();
+            
+            // Убираем подсветку
             columnElement.classList.remove('drag-over');
             
-            console.log(`🎯 JS: DROP в колонку: ${columnId}`);
-            console.log(`📦 JS: Текущие данные drag:`, {
+            console.log(`📦 JS: Текущие данные drag при drop:`, {
                 taskId: kanbanDragDrop.draggedTaskId,
                 fromColumn: kanbanDragDrop.draggedFromColumnId,
-                toColumn: columnId
+                toColumn: columnId,
+                eventType: e.type
             });
             
-            if (kanbanDragDrop.draggedTaskId && kanbanDragDrop.draggedFromColumnId !== columnId) {
-                console.log(`🚀 JS: Вызываем Blazor метод OnTaskDropped`);
-                try {
-                    if (dotNetRef && dotNetRef.invokeMethodAsync) {
-                        dotNetRef.invokeMethodAsync('OnTaskDropped', 
-                            kanbanDragDrop.draggedTaskId, 
-                            kanbanDragDrop.draggedFromColumnId, 
-                            columnId);
-                        console.log(`✅ JS: Blazor метод вызван успешно`);
+            // Проверяем, есть ли активная задача для перемещения
+            if (!kanbanDragDrop.draggedTaskId) {
+                console.log(`⚠️ JS: Нет активной задачи для перемещения`);
+                return;
+            }
+            
+            // Проверяем, не перемещаем ли в ту же колонку
+            if (kanbanDragDrop.draggedFromColumnId === columnId) {
+                console.log(`⚠️ JS: Перемещение в ту же колонку ${columnId}, отменяем`);
+                return;
+            }
+            
+            console.log(`🚀 JS: Условия выполнены, вызываем Blazor метод OnTaskDropped`);
+            
+            try {
+                if (dotNetRef && dotNetRef.invokeMethodAsync) {
+                    console.log(`📞 JS: Вызываем dotNetRef.invokeMethodAsync...`);
+                    
+                    dotNetRef.invokeMethodAsync('OnTaskDropped', 
+                        kanbanDragDrop.draggedTaskId, 
+                        kanbanDragDrop.draggedFromColumnId, 
+                        columnId)
+                        .then(() => {
+                            console.log(`✅ JS: Blazor метод OnTaskDropped выполнен успешно`);
+                        })
+                        .catch((error) => {
+                            console.error(`❌ JS: Ошибка при выполнении Blazor метода:`, error);
+                        });
                         
-                        setTimeout(() => {
-                            kanbanDragDrop.updateTaskColumnId(kanbanDragDrop.draggedTaskId, columnId);
-                        }, 100);
-                    } else {
-                        console.log(`⚠️ JS: dotNetRef недоступен, используем fallback`);
-                        // Fallback: просто перемещаем элемент в DOM
-                        kanbanDragDrop.moveTaskInDOM(kanbanDragDrop.draggedTaskId, kanbanDragDrop.draggedFromColumnId, columnId);
-                    }
-                } catch (error) {
-                    console.error(`❌ JS: Ошибка вызова Blazor метода:`, error);
+                    // Обновляем атрибут через небольшую задержку
+                    setTimeout(() => {
+                        kanbanDragDrop.updateTaskColumnId(kanbanDragDrop.draggedTaskId, columnId);
+                    }, 100);
+                } else {
+                    console.log(`⚠️ JS: dotNetRef недоступен (${!dotNetRef ? 'null' : 'no invokeMethodAsync'}), используем fallback`);
+                    // Fallback: просто перемещаем элемент в DOM
+                    kanbanDragDrop.moveTaskInDOM(kanbanDragDrop.draggedTaskId, kanbanDragDrop.draggedFromColumnId, columnId);
                 }
-            } else {
-                console.log(`⚠️ JS: Перемещение отменено:`, {
-                    reason: kanbanDragDrop.draggedFromColumnId === columnId ? 'Та же колонка' : 'Нет активной задачи',
-                    draggedTaskId: kanbanDragDrop.draggedTaskId,
-                    fromColumn: kanbanDragDrop.draggedFromColumnId,
-                    toColumn: columnId
-                });
+            } catch (error) {
+                console.error(`❌ JS: Исключение при вызове Blazor метода:`, error);
             }
         };
         
@@ -237,6 +255,13 @@ window.kanbanDragDrop = {
         kanbanDragDrop.draggedFromColumnId = null;
         kanbanDragDrop.isInitialized = false;
         
+        // Останавливаем MutationObserver
+        if (kanbanDragDrop.observer) {
+            kanbanDragDrop.observer.disconnect();
+            kanbanDragDrop.observer = null;
+            console.log('🧹 JS: MutationObserver остановлен');
+        }
+        
         // Очищаем все обработчики drag-and-drop
         const tasks = document.querySelectorAll('.kanban-task');
         console.log(`🧹 JS: Найдено ${tasks.length} задач для очистки`);
@@ -263,6 +288,118 @@ window.kanbanDragDrop = {
         });
         
         console.log('✅ JS: Очистка завершена');
+    },
+
+    // Новый метод: настройка наблюдателя за изменениями DOM
+    setupDOMObserver: function() {
+        if (kanbanDragDrop.observer) {
+            console.log('⚠️ JS: MutationObserver уже настроен');
+            return;
+        }
+
+        console.log('👀 JS: Настраиваем MutationObserver для отслеживания изменений DOM');
+        
+        kanbanDragDrop.observer = new MutationObserver(function(mutations) {
+            let shouldReinitialize = false;
+            
+            mutations.forEach(function(mutation) {
+                // Проверяем добавление новых узлов
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            // Проверяем, добавились ли новые задачи или колонки
+                            if (node.classList && (node.classList.contains('kanban-task') || node.classList.contains('kanban-column'))) {
+                                console.log(`🔍 JS: Обнаружен новый элемент:`, node.className, node.id);
+                                shouldReinitialize = true;
+                            }
+                            
+                            // Также проверяем вложенные элементы
+                            const newTasks = node.querySelectorAll && node.querySelectorAll('.kanban-task');
+                            const newColumns = node.querySelectorAll && node.querySelectorAll('.kanban-column');
+                            if ((newTasks && newTasks.length > 0) || (newColumns && newColumns.length > 0)) {
+                                console.log(`🔍 JS: Обнаружены новые вложенные элементы: ${newTasks ? newTasks.length : 0} задач, ${newColumns ? newColumns.length : 0} колонок`);
+                                shouldReinitialize = true;
+                            }
+                        }
+                    });
+                }
+            });
+            
+            if (shouldReinitialize) {
+                console.log('🔄 JS: MutationObserver запускает переинициализацию drag-and-drop');
+                // Небольшая задержка для завершения рендеринга
+                setTimeout(() => {
+                    kanbanDragDrop.forceReinitialize();
+                }, 300);
+            }
+        });
+        
+        // Начинаем наблюдение за изменениями в document.body
+        kanbanDragDrop.observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: false
+        });
+        
+        console.log('✅ JS: MutationObserver настроен и активен');
+    },
+
+    // Принудительная переинициализация
+    forceReinitialize: function() {
+        console.log('🔄 JS: Принудительная переинициализация drag-and-drop');
+        
+        const tasks = document.querySelectorAll('.kanban-task');
+        const columns = document.querySelectorAll('.kanban-column');
+        
+        console.log(`🔍 JS: Найдено для переинициализации: ${tasks.length} задач и ${columns.length} колонок`);
+        
+        // Инициализируем колонки
+        columns.forEach(column => {
+            const columnId = column.id.replace('column-', '');
+            if (columnId) {
+                kanbanDragDrop.initColumnDropZone(column.id, columnId, null);
+            }
+        });
+        
+        // Инициализируем задачи
+        tasks.forEach(task => {
+            const taskId = task.getAttribute('data-task-id');
+            const columnId = task.getAttribute('data-column-id');
+            if (taskId && columnId) {
+                kanbanDragDrop.initTaskDragDrop(task.id, taskId, columnId);
+            }
+        });
+        
+        console.log('✅ JS: Принудительная переинициализация завершена');
+    },
+
+    // Проверка готовности элементов
+    waitForElement: function(selector, timeout = 5000) {
+        return new Promise((resolve, reject) => {
+            const element = document.querySelector(selector);
+            if (element) {
+                resolve(element);
+                return;
+            }
+            
+            const observer = new MutationObserver(() => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    observer.disconnect();
+                    resolve(element);
+                }
+            });
+            
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            setTimeout(() => {
+                observer.disconnect();
+                reject(new Error(`Элемент ${selector} не найден за ${timeout}мс`));
+            }, timeout);
+        });
     }
 };
 
@@ -272,6 +409,10 @@ console.log('🚀 JS: kanbanDragDrop объект инициализирован
 // Добавляем глобальную проверку DOM
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 JS: DOM загружен');
+    
+    // Запускаем MutationObserver
+    kanbanDragDrop.setupDOMObserver();
+    
     setTimeout(() => {
         const tasks = document.querySelectorAll('.kanban-task');
         const columns = document.querySelectorAll('.kanban-column');
@@ -285,4 +426,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 2000);
     }, 1000);
-}); 
+});
+
+// Добавляем глобальную функцию для ручного вызова переинициализации
+window.reinitializeDragDrop = function() {
+    console.log('🔧 JS: Ручной вызов переинициализации drag-and-drop');
+    kanbanDragDrop.forceReinitialize();
+}; 
