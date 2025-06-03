@@ -1,21 +1,55 @@
 @page "/projects"
+@using TaskTracker.Models
+@using TaskTracker.Models.DTOs
 @inject NavigationManager NavigationManager
 @inject IApiService ApiService
+@inject OrganizationService OrganizationService
 @inject ILocalStorageService LocalStorage
 @inject IJSRuntime JSRuntime
 
 <div class="w-screen h-screen flex bg-gray-50">
-    <!-- Новая боковая панель с проектами -->
-    <ProjectSidebar Projects="availableProjects"
-        SelectedProject="selectedProject"
-        UserName="@currentUserName"
-        UserEmail="@currentUserEmail"
-        OnProjectSelected="HandleProjectSelected"
-        OnCreateProject="HandleCreateProject"
-        OnLogout="HandleLogout" />
+    <!-- Боковая панель с организациями и проектами -->
+    <div class="sidebar-fixed bg-white shadow-lg border-r border-gray-200 @(isMobileMenuOpen ? "" : "sidebar-hidden lg:transform-none")">
+        <ProjectSidebar Organizations="availableOrganizations"
+            Projects="availableProjects"
+            SelectedProject="selectedProject"
+            UserName="@currentUserName"
+            UserEmail="@currentUserEmail"
+            OnProjectSelected="HandleProjectSelected"
+            OnCreateProject="HandleCreateProject"
+            OnCreateOrganization="HandleCreateOrganization"
+            OnCloseMobile="HandleCloseMobileMenu"
+            OnLogout="HandleLogout" />
+    </div>
+
+    <!-- Оверлей для мобильных устройств -->
+    @if (isMobileMenuOpen)
+    {
+        <div class="fixed inset-0 z-40 lg:hidden">
+            <div class="fixed inset-0 bg-gray-600 bg-opacity-75" @onclick="HandleCloseMobileMenu"></div>
+        </div>
+    }
 
     <!-- Основная часть (Main Content) -->
-    <main class="flex-1 w-full h-full flex flex-col">
+    <main class="main-with-sidebar flex-1 w-full h-full flex flex-col">
+        <!-- Мобильная панель навигации -->
+        <div class="lg:hidden bg-white border-b border-gray-200 p-4">
+            <div class="flex items-center justify-between">
+                <button @onclick="HandleToggleMobileMenu"
+                        class="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <div class="flex-1 text-center">
+                    <h1 class="text-lg font-semibold text-gray-900">
+                        @(selectedProject?.Name ?? "TaskTracker")
+                    </h1>
+                </div>
+                <div class="w-10 h-10"></div> <!-- Балансировка для центрирования -->
+            </div>
+        </div>
+
         @if (selectedProject != null)
         {
             <!-- Используем компонент Header -->
@@ -27,48 +61,59 @@
                 OnSearchChanged="HandleSearch"
                 OnLogoutClick="HandleLogout" />
 
-            <!-- Контент страницы -->
+            <!-- Контент страницы с горизонтальной прокруткой -->
             <div class="flex-1 overflow-hidden">
-                <!-- Используем компонент KanbanBoard -->
-                <KanbanBoard @ref="kanbanBoardRef"
-                    Columns="kanbanColumns"
-                    OnTaskClick="HandleTaskClick"
-                    OnAddTaskToColumn="HandleAddTaskToColumn"
-                    OnAddColumn="HandleAddColumn"
-                    OnTaskMoved="HandleTaskMoved" />
+                <div class="h-full overflow-x-auto overflow-y-hidden" style="max-width: 100vw;">
+                    <div class="flex space-x-6 p-6 h-full" style="width: max-content; min-width: 100%;">
+                        <!-- Используем компонент KanbanBoard -->
+                        <KanbanBoard @ref="kanbanBoardRef"
+                            Columns="kanbanColumns"
+                            OnTaskClick="HandleTaskClick"
+                            OnAddTaskToColumn="HandleAddTaskToColumn"
+                            OnAddColumn="HandleAddColumn"
+                            OnTaskMoved="HandleTaskMoved" />
+                    </div>
+                </div>
+            </div>
+        }
+        else if (!availableOrganizations.Any())
+        {
+            <!-- Экран создания первой организации -->
+            <div class="flex-1 flex items-center justify-center p-4">
+                <div class="text-center max-w-md mx-auto">
+                    <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-gray-900 mb-2">Добро пожаловать в TaskTracker!</h2>
+                    <p class="text-gray-600 mb-6">
+                        Создайте организацию для группировки проектов и управления командой.
+                    </p>
+                    <button @onclick="HandleCreateOrganization"
+                            class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-lg font-medium">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Создать организацию
+                    </button>
+                </div>
             </div>
         }
         else
         {
             <!-- Экран выбора проекта -->
-            <div class="flex-1 flex items-center justify-center">
+            <div class="flex-1 flex items-center justify-center p-4">
                 <div class="text-center max-w-md mx-auto">
                     <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round"
-                                  stroke-linejoin="round"
-                                  stroke-width="2"
-                                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z">
-                            </path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"></path>
                         </svg>
                     </div>
-                    <h2 class="text-2xl font-semibold text-gray-900 mb-2">Добро пожаловать в TaskTracker!</h2>
+                    <h2 class="text-xl font-semibold text-gray-900 mb-2">Выберите проект</h2>
                     <p class="text-gray-600 mb-6">
-                        Выберите проект из боковой панели или создайте новый, чтобы начать управление задачами.
+                        Выберите проект из боковой панели или создайте новый в одной из ваших организаций.
                     </p>
-                    @if (!availableProjects.Any())
-                    {
-                        <button @onclick="HandleCreateProject"
-                                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round"
-                                      stroke-linejoin="round"
-                                      stroke-width="2"
-                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                            </svg>
-                            Создать первый проект
-                        </button>
-                    }
                 </div>
             </div>
         }
@@ -82,8 +127,14 @@
 
 <!-- Модальное окно создания проекта -->
 <ProjectCreateModal IsVisible="isCreateProjectModalVisible"
+    OrganizationId="@selectedOrganizationIdForNewProject"
     OnClose="HandleCloseProjectModal"
     OnProjectCreated="HandleProjectCreated" />
+
+<!-- Модальное окно создания организации -->
+<OrganizationCreateModal IsVisible="isCreateOrganizationModalVisible"
+    OnClose="HandleCloseOrganizationModal"
+    OnOrganizationCreated="HandleOrganizationCreated" />
 
 <!-- Модальное окно создания колонки -->
 <ColumnCreateModal IsVisible="isCreateColumnModalVisible"
@@ -93,6 +144,9 @@
     OnColumnCreated="HandleColumnCreated" />
 
 @code {
+    // Данные организаций
+    private List<Organization> availableOrganizations = new();
+    
     // Данные проектов из API
     private List<Project> availableProjects = new();
     private Project? selectedProject = null;
@@ -103,11 +157,18 @@
     // Состояние модальных окон
     private bool isCreateModalVisible = false;
     private bool isCreateProjectModalVisible = false;
+    private bool isCreateOrganizationModalVisible = false;
     private bool isCreateColumnModalVisible = false;
+
+    // Мобильное меню
+    private bool isMobileMenuOpen = false;
 
     // Пользовательские данные
     private string currentUserName = "";
     private string currentUserEmail = "";
+
+    // ID организации для создания нового проекта
+    private string selectedOrganizationIdForNewProject = "";
 
     // Ссылка на компонент KanbanBoard для переинициализации drag-and-drop
     private KanbanBoard? kanbanBoardRef;
@@ -115,6 +176,7 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadUserDataAsync();
+        await LoadOrganizationsAsync();
         await LoadProjectsAsync();
 
         // Автоматически выбираем первый проект, если он есть
@@ -140,6 +202,20 @@
         }
     }
 
+    private async Task LoadOrganizationsAsync()
+    {
+        try
+        {
+            availableOrganizations = await OrganizationService.GetUserOrganizationsAsync();
+            Console.WriteLine($"🏢 Загружено {availableOrganizations.Count} организаций из API");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка загрузки организаций: {ex.Message}");
+            availableOrganizations = new List<Organization>();
+        }
+    }
+
     private async Task LoadProjectsAsync()
     {
         try
@@ -151,7 +227,6 @@
         catch (Exception ex)
         {
             Console.WriteLine($"❌ Ошибка загрузки проектов: {ex.Message}");
-            // В случае ошибки показываем пустой список
             availableProjects = new List<Project>();
         }
     }
@@ -252,12 +327,6 @@
         StateHasChanged();
     }
 
-    private void HandleCreateProject()
-    {
-        Console.WriteLine("➕ Открываем модальное окно создания проекта");
-        isCreateProjectModalVisible = true;
-    }
-
     private void HandleCloseProjectModal()
     {
         isCreateProjectModalVisible = false;
@@ -274,7 +343,8 @@
                 Name = newProject.Name,
                 Description = newProject.Description,
                 Icon = newProject.Icon,
-                Color = newProject.Color
+                Color = newProject.Color,
+                OrganizationId = newProject.OrganizationId
             };
 
             var createdProject = await ApiService.CreateProjectAsync(createRequest);
@@ -376,194 +446,132 @@
     // Обработчики для модального окна создания колонки
     private void HandleCloseColumnModal()
     {
-        Console.WriteLine("🚪 Закрываем модальное окно создания колонки");
         isCreateColumnModalVisible = false;
     }
 
     private async void HandleColumnCreated(KanbanColumn newColumn)
     {
-        if (selectedProject == null) return;
-
         Console.WriteLine($"✅ Создана новая колонка: {newColumn.Title}");
-
+        
         try
         {
-            var createRequest = new CreateColumnRequest
+            // Перезагружаем колонки для обновления данных
+            await LoadProjectColumnsAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка при обновлении колонок: {ex.Message}");
+        }
+    }
+
+    // Обработчики для организаций
+    private void HandleCreateOrganization()
+    {
+        Console.WriteLine("🏢 Открываем модальное окно создания организации");
+        isCreateOrganizationModalVisible = true;
+    }
+
+    private void HandleCloseOrganizationModal()
+    {
+        isCreateOrganizationModalVisible = false;
+    }
+
+    private async void HandleOrganizationCreated(Organization newOrganization)
+    {
+        Console.WriteLine($"✅ Создана новая организация: {newOrganization.Name}");
+        
+        try
+        {
+            var createRequest = new CreateOrganizationRequest
             {
-                Title = newColumn.Title,
-                ProjectId = selectedProject.Id,
-                Order = newColumn.Order
+                Name = newOrganization.Name,
+                Description = newOrganization.Description,
+                Icon = newOrganization.Icon,
+                Color = newOrganization.Color
             };
 
-            var createdColumn = await ApiService.CreateColumnAsync(createRequest);
-            if (createdColumn != null)
+            var createdOrganization = await OrganizationService.CreateOrganizationAsync(createRequest);
+            if (createdOrganization != null)
             {
-                // Перезагружаем колонки для обновления данных
-                await LoadProjectColumnsAsync();
+                await LoadOrganizationsAsync(); // Перезагружаем список организаций
                 StateHasChanged();
-
-                // Переинициализируем drag-and-drop для новых колонок
-                if (kanbanBoardRef != null)
-                {
-                    Console.WriteLine("🔄 Переинициализация drag-and-drop для новой колонки...");
-                    await kanbanBoardRef.RefreshDragAndDrop();
-                }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Ошибка создания колонки: {ex.Message}");
+            Console.WriteLine($"❌ Ошибка создания организации: {ex.Message}");
         }
     }
 
-    private async void HandleTaskMoved(TaskMovedEventArgs eventArgs)
+    // Обработчики для создания проекта с организацией
+    private void HandleCreateProject(string organizationId)
     {
-        Console.WriteLine($"🎯 Начало перемещения задачи {eventArgs.TaskId} из {eventArgs.FromColumnId} в {eventArgs.ToColumnId}");
-        
-        // Диагностика - покажем все задачи в исходной колонке
-        var sourceColumn = kanbanColumns.FirstOrDefault(c => c.Id == eventArgs.FromColumnId);
-        if (sourceColumn != null)
-        {
-            Console.WriteLine($"📋 BLAZOR: Задачи в исходной колонке {eventArgs.FromColumnId}:");
-            foreach (var t in sourceColumn.Tasks)
-            {
-                Console.WriteLine($"   - ID: {t.Id}, Title: {t.Title}, ColumnId: {t.ColumnId}");
-            }
-        }
+        Console.WriteLine($"➕ Открываем модальное окно создания проекта для организации: {organizationId}");
+        selectedOrganizationIdForNewProject = organizationId;
+        isCreateProjectModalVisible = true;
+    }
+
+    // Обработчики для мобильного меню
+    private void HandleToggleMobileMenu()
+    {
+        isMobileMenuOpen = !isMobileMenuOpen;
+        StateHasChanged();
+    }
+
+    private void HandleCloseMobileMenu()
+    {
+        isMobileMenuOpen = false;
+        StateHasChanged();
+    }
+
+    // Обработчик для перемещения задач
+    private async Task HandleTaskMoved(TaskMovedEventArgs args)
+    {
+        Console.WriteLine($"🎯 BLAZOR: Получен запрос на перемещение задачи {args.TaskId} из {args.FromColumnId} в {args.ToColumnId}");
         
         try
         {
-            // Сначала выполняем оптимистичное обновление UI
-            var targetColumn = kanbanColumns.FirstOrDefault(c => c.Id == eventArgs.ToColumnId);
-            var task = sourceColumn?.Tasks.FirstOrDefault(t => t.Id == eventArgs.TaskId);
-
-            if (task != null && sourceColumn != null && targetColumn != null)
+            // Создаем запрос перемещения
+            var moveRequest = new MoveTaskRequest
             {
-                // Убираем задачу из исходной колонки
-                sourceColumn.Tasks.Remove(task);
+                NewColumnId = args.ToColumnId,
+                NewOrder = 0 // Пока используем простой порядок
+            };
+
+            Console.WriteLine($"📤 BLAZOR: Отправляем запрос перемещения в API - TaskId: {args.TaskId}, NewColumnId: {args.ToColumnId}");
+            
+            // Отправляем запрос в API
+            var movedTask = await ApiService.MoveTaskAsync(args.TaskId, moveRequest);
+            
+            if (movedTask != null)
+            {
+                Console.WriteLine($"✅ BLAZOR: Задача успешно перемещена в API: {movedTask.Title} -> ColumnId: {movedTask.ColumnId}");
                 
-                // Обновляем ColumnId задачи
-                task.ColumnId = eventArgs.ToColumnId;
-                
-                // Добавляем в целевую колонку
-                targetColumn.Tasks.Add(task);
-                
-                Console.WriteLine($"✅ Оптимистичное обновление данных выполнено");
-                
-                // Даем JavaScript время завершить анимацию перетаскивания
-                await Task.Delay(50);
-                
-                // Обновляем UI
+                // Перезагружаем данные для синхронизации с сервером
+                await LoadProjectColumnsAsync();
                 StateHasChanged();
-                
-                Console.WriteLine($"✅ UI обновлен после задержки");
 
-                // Теперь отправляем изменение в API
-                var moveRequest = new MoveTaskRequest
+                // Переинициализируем drag-and-drop
+                if (kanbanBoardRef != null)
                 {
-                    NewColumnId = eventArgs.ToColumnId,
-                    NewOrder = targetColumn.Tasks.Count - 1
-                };
-
-                Console.WriteLine($"📤 BLAZOR: Отправка запроса MoveTask - TaskId: {eventArgs.TaskId}, NewColumnId: {moveRequest.NewColumnId}, NewOrder: {moveRequest.NewOrder}");
-
-                var movedTask = await ApiService.MoveTaskAsync(eventArgs.TaskId, moveRequest);
-                if (movedTask != null)
-                {
-                    Console.WriteLine($"✅ Задача '{movedTask.Title}' успешно перемещена через API");
-                    
-                    // Добавляем анимацию успешного перемещения
-                    await AddTaskMoveAnimation(eventArgs.TaskId);
-                    
-                    // Небольшая задержка перед переинициализацией drag-and-drop
-                    await Task.Delay(100);
-                    
-                    // Возвращаем RefreshDragAndDrop с дополнительной задержкой
-                    if (kanbanBoardRef != null)
-                    {
-                        Console.WriteLine("🔄 Переинициализация drag-and-drop после успешного перемещения...");
-                        await Task.Delay(200); // Дополнительная задержка для стабилизации
-                        await kanbanBoardRef.RefreshDragAndDrop();
-                    }
-                    
-                    Console.WriteLine($"🔍 Диагностика: Задача {eventArgs.TaskId} находится в колонке {task.ColumnId}");
-                    Console.WriteLine($"🔍 Диагностика: Исходная колонка {eventArgs.FromColumnId} содержит {sourceColumn.Tasks.Count} задач");
-                    Console.WriteLine($"🔍 Диагностика: Целевая колонка {eventArgs.ToColumnId} содержит {targetColumn.Tasks.Count} задач");
-                }
-                else
-                {
-                    Console.WriteLine("❌ API вернул null, откатываем изменения");
-                    // Откатываем изменения если API вернул ошибку
-                    await RollbackTaskMove(task, sourceColumn, targetColumn);
+                    await kanbanBoardRef.RefreshDragAndDrop();
                 }
             }
             else
             {
-                Console.WriteLine("❌ Не удалось найти задачу или колонки для перемещения");
+                Console.WriteLine($"❌ BLAZOR: API вернул null при перемещении задачи {args.TaskId}");
+                // В случае ошибки перезагружаем данные для отката изменений
+                await LoadProjectColumnsAsync();
+                StateHasChanged();
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Ошибка при перемещении задачи: {ex.Message}");
-            
-            // В случае ошибки перезагружаем данные из API
-            Console.WriteLine("🔄 Перезагрузка данных из API после ошибки...");
+            Console.WriteLine($"❌ BLAZOR: Ошибка при перемещении задачи: {ex.Message}");
+            // В случае ошибки перезагружаем данные для отката изменений
             await LoadProjectColumnsAsync();
             StateHasChanged();
-            
-            // Переинициализируем drag-and-drop после перезагрузки
-            if (kanbanBoardRef != null)
-            {
-                await Task.Delay(200); // Даем время UI обновиться
-                await kanbanBoardRef.RefreshDragAndDrop();
-            }
-        }
-    }
-
-    private async Task RollbackTaskMove(KanbanTask task, KanbanColumn sourceColumn, KanbanColumn targetColumn)
-    {
-        // Убираем задачу из целевой колонки
-        targetColumn.Tasks.Remove(task);
-        
-        // Возвращаем исходный ColumnId
-        task.ColumnId = sourceColumn.Id;
-        
-        // Возвращаем в исходную колонку
-        sourceColumn.Tasks.Add(task);
-        
-        // Обновляем UI
-        StateHasChanged();
-        
-        // Переинициализируем drag-and-drop
-        if (kanbanBoardRef != null)
-        {
-            await Task.Delay(100);
-            await kanbanBoardRef.RefreshDragAndDrop();
-        }
-        
-        Console.WriteLine("🔄 Откат перемещения задачи выполнен");
-    }
-
-    private async Task AddTaskMoveAnimation(string taskId)
-    {
-        try
-        {
-            // Добавляем CSS класс для анимации
-            await JSRuntime.InvokeVoidAsync("eval", $@"
-                const taskElement = document.getElementById('task-{taskId}');
-                if (taskElement) {{
-                    taskElement.classList.add('task-moved');
-                    setTimeout(() => {{
-                        taskElement.classList.remove('task-moved');
-                    }}, 300);
-                }}
-            ");
-            
-            Console.WriteLine($"✨ Анимация перемещения добавлена для задачи {taskId}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"⚠️ Ошибка добавления анимации: {ex.Message}");
         }
     }
 }

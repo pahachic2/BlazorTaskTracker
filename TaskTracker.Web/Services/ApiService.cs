@@ -46,6 +46,105 @@ public class ApiService : IApiService
         return response;
     }
 
+    // Методы для организаций (временные заглушки для демо)
+    public async Task<List<OrganizationResponse>> GetUserOrganizationsAsync()
+    {
+        await SetAuthorizationHeaderAsync();
+        
+        // Временная заглушка - возвращаем тестовые организации
+        await Task.Delay(500); // Имитируем задержку сети
+        
+        return new List<OrganizationResponse>
+        {
+            new OrganizationResponse
+            {
+                Id = "org1",
+                Name = "Моя компания",
+                Description = "Основная организация для работы",
+                Icon = "🏢",
+                Color = "bg-blue-500",
+                Members = new List<string> { "Анна Иванова", "Иван Петров" },
+                OwnerId = "user1",
+                ProjectCount = 3,
+                CreatedDate = DateTime.UtcNow.AddDays(-30)
+            },
+            new OrganizationResponse
+            {
+                Id = "org2",
+                Name = "Стартап IT",
+                Description = "Инновационные IT решения",
+                Icon = "🚀",
+                Color = "bg-purple-500",
+                Members = new List<string> { "Анна Иванова" },
+                OwnerId = "user1",
+                ProjectCount = 1,
+                CreatedDate = DateTime.UtcNow.AddDays(-10)
+            }
+        };
+    }
+
+    public async Task<OrganizationResponse?> GetOrganizationByIdAsync(string organizationId)
+    {
+        await SetAuthorizationHeaderAsync();
+        await Task.Delay(300);
+        
+        var organizations = await GetUserOrganizationsAsync();
+        return organizations.FirstOrDefault(o => o.Id == organizationId);
+    }
+
+    public async Task<OrganizationResponse?> CreateOrganizationAsync(CreateOrganizationRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        await Task.Delay(800); // Имитируем создание
+        
+        var newOrganization = new OrganizationResponse
+        {
+            Id = "org_" + Guid.NewGuid().ToString("N")[..8],
+            Name = request.Name,
+            Description = request.Description,
+            Icon = request.Icon,
+            Color = request.Color,
+            Members = new List<string> { "Анна Иванова" }, // Создатель
+            OwnerId = "user1",
+            ProjectCount = 0,
+            CreatedDate = DateTime.UtcNow
+        };
+
+        _toastService.ShowSuccess("Организация создана!", $"Организация \"{newOrganization.Name}\" успешно создана");
+        return newOrganization;
+    }
+
+    public async Task<OrganizationResponse?> UpdateOrganizationAsync(string organizationId, UpdateOrganizationRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        await Task.Delay(600);
+        
+        var updatedOrganization = new OrganizationResponse
+        {
+            Id = organizationId,
+            Name = request.Name,
+            Description = request.Description,
+            Icon = request.Icon,
+            Color = request.Color,
+            Members = new List<string> { "Анна Иванова" },
+            OwnerId = "user1",
+            ProjectCount = 2,
+            CreatedDate = DateTime.UtcNow.AddDays(-5)
+        };
+
+        _toastService.ShowSuccess("Организация обновлена!", $"Организация \"{updatedOrganization.Name}\" успешно обновлена");
+        return updatedOrganization;
+    }
+
+    public async Task<bool> DeleteOrganizationAsync(string organizationId)
+    {
+        await SetAuthorizationHeaderAsync();
+        await Task.Delay(400);
+        
+        _toastService.ShowSuccess("Организация удалена!", "Организация успешно удалена");
+        return true;
+    }
+
     // Методы для проектов
     public async Task<List<ProjectResponse>> GetUserProjectsAsync()
     {

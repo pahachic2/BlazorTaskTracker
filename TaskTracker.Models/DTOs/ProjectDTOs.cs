@@ -16,6 +16,9 @@ public class CreateProjectRequest
     
     public string Icon { get; set; } = "📋";
     public string Color { get; set; } = "bg-blue-500";
+    
+    [Required(ErrorMessage = "ID организации обязателен")]
+    public string OrganizationId { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -33,6 +36,8 @@ public class UpdateProjectRequest
     public string Icon { get; set; } = "📋";
     public string Color { get; set; } = "bg-blue-500";
     public bool IsActive { get; set; } = true;
+    
+    public string OrganizationId { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -45,6 +50,7 @@ public class ProjectResponse
     public string Description { get; set; } = string.Empty;
     public string Color { get; set; } = string.Empty;
     public string Icon { get; set; } = string.Empty;
+    public string OrganizationId { get; set; } = string.Empty;
     public DateTime CreatedDate { get; set; }
     public List<string> Members { get; set; } = new();
     public int TaskCount { get; set; }

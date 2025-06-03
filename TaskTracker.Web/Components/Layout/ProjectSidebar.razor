@@ -1,102 +1,164 @@
-@* Боковая панель с проектами *@
+@using TaskTracker.Models
+@* Боковая панель с организациями и проектами *@
 
-<aside class="h-full w-64 bg-white shadow-lg flex flex-col border-r border-gray-200">
-    <!-- Заголовок -->
+<aside class="w-full h-full flex flex-col">
+    <!-- Заголовок с кнопкой закрытия для мобильных -->
     <div class="p-4 border-b border-gray-200">
-        <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span class="text-white font-bold text-sm">T</span>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">T</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-semibold text-gray-900">TaskTracker</h1>
+                    <p class="text-xs text-gray-500">Управление проектами</p>
+                </div>
             </div>
-            <div>
-                <h1 class="text-lg font-semibold text-gray-900">TaskTracker</h1>
-                <p class="text-xs text-gray-500">Управление проектами</p>
-            </div>
+            
+            <!-- Кнопка закрытия для мобильных -->
+            <button @onclick="HandleCloseMobile" 
+                    class="lg:hidden p-1 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
         </div>
     </div>
 
-    <!-- Кнопка создания нового проекта -->
-    <div class="p-4 border-b border-gray-200">
-        <button @onclick="HandleCreateProject"
-                class="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Новый проект
-        </button>
-    </div>
-
-    <!-- Список проектов -->
+    <!-- Основной контент с прокруткой -->
     <div class="flex-1 overflow-y-auto">
-        <div class="p-2">
-            <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 py-2">
-                Ваши проекты (@Projects.Count)
-            </h2>
-            
-            @if (Projects.Any())
-            {
+        @if (!Organizations.Any())
+        {
+            <!-- Состояние: нет организаций -->
+            <div class="p-4">
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-sm font-medium text-gray-900 mb-2">Нет организаций</h3>
+                    <p class="text-xs text-gray-500 mb-4 px-2">
+                        Создайте организацию для группировки проектов
+                    </p>
+                    <button @onclick="HandleCreateOrganization"
+                            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Добавить организацию
+                    </button>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Список организаций -->
+            <div class="p-2">
+                <div class="flex items-center justify-between px-2 py-2 mb-2">
+                    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Организации (@Organizations.Count)
+                    </h2>
+                    <button @onclick="HandleCreateOrganization"
+                            class="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+                            title="Добавить организацию">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                    </button>
+                </div>
+
                 <div class="space-y-1">
-                    @foreach (var project in Projects)
+                    @foreach (var organization in Organizations)
                     {
-                        <div class="@GetProjectItemClasses(project)" 
-                             @onclick="@(() => HandleProjectSelect(project))">
-                            <div class="flex items-center space-x-3 p-3 rounded-lg cursor-pointer">
-                                <!-- Иконка проекта -->
-                                <div class="flex-shrink-0">
-                                    <div class="w-8 h-8 @project.Color rounded-lg flex items-center justify-center text-white text-sm">
-                                        @project.Icon
-                                    </div>
-                                </div>
-                                
-                                <!-- Информация о проекте -->
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-gray-900 truncate">
-                                        @project.Name
-                                    </p>
-                                    @if (!string.IsNullOrEmpty(project.Description))
-                                    {
-                                        <p class="text-xs text-gray-500 truncate">
-                                            @project.Description
-                                        </p>
-                                    }
-                                    <div class="flex items-center space-x-2 mt-1">
-                                        <span class="text-xs text-gray-400">
-                                            @project.TaskCount задач
-                                        </span>
-                                        @if (project.Members.Any())
-                                        {
-                                            <span class="text-xs text-gray-400">•</span>
-                                            <span class="text-xs text-gray-400">
-                                                @project.Members.Count участник@(project.Members.Count == 1 ? "" : project.Members.Count < 5 ? "а" : "ов")
-                                            </span>
-                                        }
-                                    </div>
-                                </div>
-                                
-                                <!-- Индикатор активного проекта -->
-                                @if (SelectedProject?.Id == project.Id)
-                                {
+                        <div class="organization-item">
+                            <!-- Заголовок организации -->
+                            <div class="@GetOrganizationItemClasses(organization)" 
+                                 @onclick="@(() => ToggleOrganization(organization.Id))">
+                                <div class="flex items-center space-x-3 p-3 rounded-lg cursor-pointer">
+                                    <!-- Стрелка раскрытия -->
                                     <div class="flex-shrink-0">
-                                        <div class="w-2 h-2 bg-blue-600 rounded-full"></div>
+                                        <svg class="w-4 h-4 text-gray-400 transition-transform @(expandedOrganizations.Contains(organization.Id) ? "rotate-90" : "")" 
+                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                        </svg>
                                     </div>
-                                }
+                                    
+                                    <!-- Иконка организации -->
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 @organization.Color rounded-lg flex items-center justify-center text-white text-sm">
+                                            @organization.Icon
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Информация об организации -->
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-900 truncate">
+                                            @organization.Name
+                                        </p>
+                                        <p class="text-xs text-gray-500">
+                                            @organization.ProjectCount проект@(organization.ProjectCount == 1 ? "" : organization.ProjectCount < 5 ? "а" : "ов")
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- Проекты в организации -->
+                            @if (expandedOrganizations.Contains(organization.Id))
+                            {
+                                <div class="ml-6 mt-1 space-y-1">
+                                    <!-- Кнопка создания проекта -->
+                                    <button @onclick="@(() => HandleCreateProject(organization.Id))"
+                                            class="w-full flex items-center space-x-2 p-2 text-left text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-md transition-colors text-sm">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                        <span>Создать проект</span>
+                                    </button>
+
+                                    <!-- Список проектов -->
+                                    @if (GetOrganizationProjects(organization.Id).Any())
+                                    {
+                                        @foreach (var project in GetOrganizationProjects(organization.Id))
+                                        {
+                                            <div class="@GetProjectItemClasses(project)" 
+                                                 @onclick="@(() => HandleProjectSelect(project))">
+                                                <div class="flex items-center space-x-3 p-2 rounded-md cursor-pointer">
+                                                    <!-- Иконка проекта -->
+                                                    <div class="flex-shrink-0">
+                                                        <div class="w-6 h-6 @project.Color rounded-md flex items-center justify-center text-white text-xs">
+                                                            @project.Icon
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Информация о проекте -->
+                                                    <div class="flex-1 min-w-0">
+                                                        <p class="text-sm font-medium text-gray-900 truncate">
+                                                            @project.Name
+                                                        </p>
+                                                        <p class="text-xs text-gray-500">
+                                                            @project.TaskCount задач
+                                                        </p>
+                                                    </div>
+                                                    
+                                                    <!-- Индикатор активного проекта -->
+                                                    @if (SelectedProject?.Id == project.Id)
+                                                    {
+                                                        <div class="flex-shrink-0">
+                                                            <div class="w-2 h-2 bg-blue-600 rounded-full"></div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
                         </div>
                     }
                 </div>
-            }
-            else
-            {
-                <div class="text-center py-8">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"></path>
-                    </svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">Нет проектов</h3>
-                    <p class="mt-1 text-sm text-gray-500 px-4">
-                        Создайте первый проект для начала работы с задачами
-                    </p>
-                </div>
-            }
-        </div>
+            </div>
+        }
     </div>
 
     <!-- Нижняя секция с профилем пользователя -->
@@ -121,25 +183,87 @@
 </aside>
 
 @code {
+    [Parameter] public List<Organization> Organizations { get; set; } = new();
     [Parameter] public List<Project> Projects { get; set; } = new();
     [Parameter] public Project? SelectedProject { get; set; }
     [Parameter] public string UserName { get; set; } = "Пользователь";
     [Parameter] public string UserEmail { get; set; } = "user@example.com";
     
     [Parameter] public EventCallback<Project> OnProjectSelected { get; set; }
-    [Parameter] public EventCallback OnCreateProject { get; set; }
+    [Parameter] public EventCallback<string> OnCreateProject { get; set; } // Теперь передаём ID организации
+    [Parameter] public EventCallback OnCreateOrganization { get; set; }
     [Parameter] public EventCallback OnLogout { get; set; }
+    [Parameter] public EventCallback OnCloseMobile { get; set; }
+
+    private HashSet<string> expandedOrganizations = new();
+
+    protected override void OnParametersSet()
+    {
+        // Автоматически раскрываем организацию с выбранным проектом
+        if (SelectedProject != null && !string.IsNullOrEmpty(SelectedProject.OrganizationId))
+        {
+            expandedOrganizations.Add(SelectedProject.OrganizationId);
+        }
+    }
+
+    private void ToggleOrganization(string organizationId)
+    {
+        if (expandedOrganizations.Contains(organizationId))
+        {
+            expandedOrganizations.Remove(organizationId);
+        }
+        else
+        {
+            expandedOrganizations.Add(organizationId);
+        }
+        StateHasChanged();
+    }
+
+    private List<Project> GetOrganizationProjects(string organizationId)
+    {
+        return Projects.Where(p => p.OrganizationId == organizationId).ToList();
+    }
 
     private async Task HandleProjectSelect(Project project)
     {
         Console.WriteLine($"🎯 Выбран проект: {project.Name}");
         await OnProjectSelected.InvokeAsync(project);
+        
+        // Автоматически закрываем мобильное меню после выбора проекта
+        await OnCloseMobile.InvokeAsync();
     }
 
-    private async Task HandleCreateProject()
+    private async Task HandleCreateProject(string organizationId)
     {
-        Console.WriteLine("➕ Создание нового проекта");
-        await OnCreateProject.InvokeAsync();
+        Console.WriteLine($"➕ Создание нового проекта в организации: {organizationId}");
+        await OnCreateProject.InvokeAsync(organizationId);
+        
+        // Закрываем мобильное меню после открытия модального окна
+        await OnCloseMobile.InvokeAsync();
+    }
+
+    private async Task HandleCreateOrganization()
+    {
+        Console.WriteLine("➕ Создание новой организации");
+        await OnCreateOrganization.InvokeAsync();
+        
+        // Закрываем мобильное меню после открытия модального окна
+        await OnCloseMobile.InvokeAsync();
+    }
+
+    private async Task HandleCloseMobile()
+    {
+        await OnCloseMobile.InvokeAsync();
+    }
+
+    private string GetOrganizationItemClasses(Organization organization)
+    {
+        var baseClasses = "hover:bg-gray-50 border border-transparent transition-colors";
+        if (expandedOrganizations.Contains(organization.Id))
+        {
+            return $"{baseClasses} bg-gray-50";
+        }
+        return baseClasses;
     }
 
     private string GetProjectItemClasses(Project project)

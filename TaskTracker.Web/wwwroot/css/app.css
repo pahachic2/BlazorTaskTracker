@@ -1,0 +1,107 @@
+/* Дополнительные CSS стили для адаптивности */
+
+/* Стабильное позиционирование боковой панели */
+.sidebar-fixed {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 16rem; /* 64 в Tailwind */
+    z-index: 50;
+}
+
+@media (min-width: 1024px) {
+    .sidebar-fixed {
+        transform: translateX(0) !important;
+    }
+    
+    /* Обеспечиваем, что основной контент не перекрывается */
+    .main-with-sidebar {
+        margin-left: 16rem !important;
+    }
+}
+
+@media (max-width: 1023px) {
+    .sidebar-fixed.sidebar-hidden {
+        transform: translateX(-100%) !important;
+    }
+    
+    .main-with-sidebar {
+        margin-left: 0 !important;
+    }
+}
+
+/* Горизонтальная прокрутка для контейнера колонок */
+.overflow-x-auto {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 #f7fafc;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+    height: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: #f7fafc;
+    border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* Улучшение touch интерфейса */
+.kanban-task {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Анимации для плавных переходов */
+.transition-transform {
+    transition: transform 0.3s ease-in-out;
+}
+
+/* Задача в процессе перемещения */
+.task-moved {
+    animation: taskMoved 0.3s ease-in-out;
+}
+
+@keyframes taskMoved {
+    0% { 
+        transform: scale(1); 
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    50% { 
+        transform: scale(1.05); 
+        box-shadow: 0 10px 25px 0 rgba(0, 0, 0, 0.15);
+    }
+    100% { 
+        transform: scale(1); 
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* Drag and drop styles */
+.kanban-task.dragging {
+    opacity: 0.6;
+    transform: rotate(5deg);
+    z-index: 1000;
+}
+
+.kanban-column.drag-over {
+    background-color: #dbeafe;
+    border: 2px dashed #3b82f6;
+}
+
+/* Focus styles для accessibility */
+button:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+} 

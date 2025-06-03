@@ -24,6 +24,10 @@ public class Project
     [BsonElement("icon")]
     public string Icon { get; set; } = "📋"; // Эмодзи иконка для проекта
 
+    [BsonElement("organizationId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string OrganizationId { get; set; } = string.Empty;
+
     [BsonElement("createdDate")]
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 

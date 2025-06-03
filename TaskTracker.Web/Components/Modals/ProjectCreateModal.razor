@@ -113,6 +113,7 @@
 
 @code {
     [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string OrganizationId { get; set; } = string.Empty;
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<Project> OnProjectCreated { get; set; }
 
@@ -161,13 +162,14 @@
                 Description = projectModel.Description ?? "",
                 Icon = projectModel.Icon,
                 Color = projectModel.Color,
+                OrganizationId = OrganizationId, // Привязываем к организации
                 CreatedDate = DateTime.UtcNow,
                 Members = new List<string> { "Анна Иванова" }, // Создатель автоматически добавляется
                 TaskCount = 0,
                 IsActive = true
             };
 
-            Console.WriteLine($"✅ Создан новый проект: {newProject.Name}");
+            Console.WriteLine($"✅ Создан новый проект: {newProject.Name} для организации: {OrganizationId}");
             await OnProjectCreated.InvokeAsync(newProject);
             await HandleClose();
         }
@@ -175,7 +177,7 @@
 
     private bool IsFormValid()
     {
-        return !string.IsNullOrWhiteSpace(projectModel.Name);
+        return !string.IsNullOrWhiteSpace(projectModel.Name) && !string.IsNullOrWhiteSpace(OrganizationId);
     }
 
     private string GetIconButtonClasses(string icon)

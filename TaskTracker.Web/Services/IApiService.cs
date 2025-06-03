@@ -8,6 +8,13 @@ public interface IApiService
     Task<AuthResponse?> LoginAsync(LoginRequest request);
     Task<AuthResponse?> RegisterAsync(RegisterRequest request);
     
+    // Методы для организаций
+    Task<List<OrganizationResponse>> GetUserOrganizationsAsync();
+    Task<OrganizationResponse?> GetOrganizationByIdAsync(string organizationId);
+    Task<OrganizationResponse?> CreateOrganizationAsync(CreateOrganizationRequest request);
+    Task<OrganizationResponse?> UpdateOrganizationAsync(string organizationId, UpdateOrganizationRequest request);
+    Task<bool> DeleteOrganizationAsync(string organizationId);
+    
     // Методы для проектов
     Task<List<ProjectResponse>> GetUserProjectsAsync();
     Task<ProjectResponse?> GetProjectByIdAsync(string projectId);
