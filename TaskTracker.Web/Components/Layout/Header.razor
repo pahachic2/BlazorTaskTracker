@@ -3,11 +3,11 @@
 <header class="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
     <div class="flex items-center justify-between">
         <!-- Левая часть - название проекта -->
-        <div class="flex items-center space-x-4">
-            <h1 class="text-xl font-semibold text-gray-900">@ProjectName</h1>
+        <div class="flex items-center space-x-4 min-w-0 max-w-xl">
+            <h1 class="text-xl font-semibold text-gray-900 truncate">@ProjectName</h1>
             @if (!string.IsNullOrEmpty(ProjectDescription))
             {
-                <span class="text-sm text-gray-500">@ProjectDescription</span>
+                <span class="text-sm text-gray-500 truncate">@ProjectDescription</span>
             }
         </div>
         
