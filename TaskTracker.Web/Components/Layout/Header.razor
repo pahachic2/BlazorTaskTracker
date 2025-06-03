@@ -2,6 +2,13 @@
 
 <header class="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
     <div class="flex items-center justify-between">
+        <!-- Гамбургер-кнопка для мобильных устройств -->
+        <button @onclick="OnToggleMobileSidebar" aria-label="Open sidebar" class="lg:hidden p-2 mr-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+
         <!-- Левая часть - название проекта -->
         <div class="flex items-center space-x-4 min-w-0 max-w-xl">
             <h1 class="text-xl font-semibold text-gray-900 truncate">@ProjectName</h1>
@@ -12,7 +19,7 @@
         </div>
         
         <!-- Правая часть - поиск, кнопки, профиль -->
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-2 md:space-x-4">
             <!-- Строка поиска -->
             <div class="relative">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -25,27 +32,27 @@
                        @bind:event="oninput"
                        @onkeypress="HandleSearchKeyPress"
                        placeholder="Поиск задач..." 
-                       class="block w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+                       class="block w-32 sm:w-40 md:w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
             </div>
             
             <!-- Кнопка "Добавить задачу" -->
             <button @onclick="HandleAddTaskClick" 
-                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="inline-flex items-center px-3 md:px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                <svg class="w-4 h-4 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                 </svg>
-                Добавить задачу
+                <span class="hidden md:inline">Добавить задачу</span>
             </button>
             
             <!-- Дополнительные кнопки (опционально) -->
             @if (ShowFiltersButton)
             {
                 <button @onclick="HandleFiltersClick" 
-                        class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="inline-flex items-center px-2 md:px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                    <svg class="w-4 h-4 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                     </svg>
-                    Фильтры
+                    <span class="hidden md:inline">Фильтры</span>
                 </button>
             }
             
@@ -109,6 +116,7 @@
     [Parameter] public EventCallback OnUserMenuClick { get; set; }
     [Parameter] public EventCallback OnLogoutClick { get; set; }
     [Parameter] public EventCallback<string> OnSearchChanged { get; set; }
+    [Parameter] public EventCallback OnToggleMobileSidebar { get; set; }
     
     // Внутренние переменные
     private string searchQuery = "";

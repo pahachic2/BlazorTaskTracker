@@ -1,6 +1,6 @@
 @* Боковая панель с проектами *@
 
-<aside class="w-64 bg-white shadow-lg flex flex-col border-r border-gray-200">
+<aside class="@GetSidebarClasses()">
     <!-- Заголовок -->
     <div class="p-4 border-b border-gray-200">
         <div class="flex items-center space-x-3">
@@ -129,6 +129,17 @@
     [Parameter] public EventCallback<Project> OnProjectSelected { get; set; }
     [Parameter] public EventCallback OnCreateProject { get; set; }
     [Parameter] public EventCallback OnLogout { get; set; }
+    [Parameter] public bool ShowOnMobile { get; set; }
+
+    private string GetSidebarClasses()
+    {
+        var baseClasses = "fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg flex flex-col border-r border-gray-200 h-full transition-transform duration-300 ease-in-out lg:static lg:inset-auto lg:z-auto lg:w-64";
+        if (ShowOnMobile)
+        {
+            return $"{baseClasses} translate-x-0"; // Show on mobile
+        }
+        return $"{baseClasses} -translate-x-full lg:translate-x-0"; // Hidden on mobile (default), shown static on lg
+    }
 
     private async Task HandleProjectSelect(Project project)
     {
