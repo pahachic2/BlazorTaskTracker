@@ -3,11 +3,10 @@
 @implements IAsyncDisposable
 @* Kanban доска компонент *@
 
-<div class="flex space-x-6 overflow-x-auto p-6 h-full">
+<div class="flex gap-4 p-6 h-full">
     @foreach (var column in Columns)
     {
-        <div id="column-@column.Id" 
-             class="kanban-column flex-shrink-0 w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
+        <div id="column-@column.Id" class="kanban-column flex-shrink-0 w-80 bg-gray-100 rounded-lg p-4 flex flex-col">
             <!-- Заголовок колонки -->
             <div class="flex items-center justify-between mb-4">
                 <h3 class="font-semibold text-gray-700 text-lg">@column.Title</h3>
@@ -15,20 +14,16 @@
                     @column.Tasks.Count
                 </span>
             </div>
-            
+
             <!-- Список задач -->
             <div class="space-y-3 flex-1 overflow-y-auto">
                 @foreach (var task in column.Tasks)
                 {
-                    <div id="task-@task.Id"
-                         data-task-id="@task.Id"
-                         data-column-id="@column.Id"
-                         class="kanban-task bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
-                         @onclick="@(() => HandleTaskClick(task))"
-                         @onmouseenter="@(() => HandleTaskMouseEnter(task))"
-                         @onclick:preventDefault="false"
-                         @onclick:stopPropagation="false">
-                        
+                    <div id="task-@task.Id" data-task-id="@task.Id" data-column-id="@column.Id"
+                        class="kanban-task bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+                        @onclick="@(() => HandleTaskClick(task))" @onmouseenter="@(() => HandleTaskMouseEnter(task))"
+                        @onclick:preventDefault="false" @onclick:stopPropagation="false">
+
                         <!-- Теги задачи -->
                         @if (task.Tags.Any())
                         {
@@ -41,12 +36,12 @@
                                 }
                             </div>
                         }
-                        
+
                         <!-- Заголовок задачи -->
                         <h4 class="font-medium text-gray-900 text-sm mb-2 line-clamp-2">
                             @task.Title
                         </h4>
-                        
+
                         <!-- Описание задачи -->
                         @if (!string.IsNullOrEmpty(task.Description))
                         {
@@ -54,7 +49,7 @@
                                 @task.Description
                             </p>
                         }
-                        
+
                         <!-- Нижняя часть карточки -->
                         <div class="flex items-center justify-between">
                             <!-- Дата выполнения -->
@@ -62,14 +57,16 @@
                             {
                                 <div class="flex items-center space-x-1">
                                     <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                        </path>
                                     </svg>
                                     <span class="@GetDueDateClasses(task.DueDate.Value) text-xs">
                                         @task.DueDate.Value.ToString("dd MMM")
                                     </span>
                                 </div>
                             }
-                            
+
                             <!-- Аватары исполнителей -->
                             @if (task.Assignees.Any())
                             {
@@ -77,14 +74,14 @@
                                     @foreach (var assignee in task.Assignees.Take(3))
                                     {
                                         <div class="w-6 h-6 rounded-full @GetAssigneeColor(assignee) flex items-center justify-center border-2 border-white text-white text-xs font-medium"
-                                             title="@assignee">
+                                            title="@assignee">
                                             @assignee.Substring(0, 1).ToUpper()
                                         </div>
                                     }
                                     @if (task.Assignees.Count > 3)
                                     {
                                         <div class="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center border-2 border-white text-white text-xs font-medium"
-                                             title="Еще @(task.Assignees.Count - 3)">
+                                            title="Еще @(task.Assignees.Count - 3)">
                                             +@(task.Assignees.Count - 3)
                                         </div>
                                     }
@@ -94,23 +91,24 @@
                     </div>
                 }
             </div>
-            
+
             <!-- Кнопка добавления задачи -->
             <button @onclick="@(() => OnAddTaskToColumn.InvokeAsync(column.Id))"
-                    class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors text-sm">
+                class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors text-sm">
                 + Добавить задачу
             </button>
         </div>
     }
-    
+
     <!-- Кнопка добавления новой колонки -->
     @if (ShowAddColumnButton)
     {
         <div class="flex-shrink-0 w-80">
             <button @onclick="HandleAddColumn"
-                    class="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors flex flex-col items-center justify-center space-y-2">
+                class="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors flex flex-col items-center justify-center space-y-2">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6">
+                    </path>
                 </svg>
                 <span class="text-sm font-medium">Добавить колонку</span>
             </button>
@@ -122,7 +120,7 @@
     // Параметры компонента
     [Parameter] public List<KanbanColumn> Columns { get; set; } = new();
     [Parameter] public bool ShowAddColumnButton { get; set; } = true;
-    
+
     // События
     [Parameter] public EventCallback<KanbanTask> OnTaskClick { get; set; }
     [Parameter] public EventCallback<string> OnAddTaskToColumn { get; set; }
@@ -136,53 +134,53 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         Console.WriteLine($"🔄 BLAZOR: OnAfterRenderAsync вызван, firstRender: {firstRender}, jsInteropDone: {jsInteropDone}");
-        
+
         if (firstRender)
         {
             Console.WriteLine("🔄 BLAZOR: Это первый рендер, начинаем инициализацию...");
-            
+
             dotNetRef = DotNetObjectReference.Create(this);
             Console.WriteLine("🔄 BLAZOR: DotNetObjectReference создан");
-            
+
             // Проверяем базовые JavaScript функции
             try
             {
                 var hasWindow = await JSRuntime.InvokeAsync<bool>("eval", "typeof window !== 'undefined'");
                 Console.WriteLine($"🔄 BLAZOR: Window объект доступен: {hasWindow}");
-                
+
                 var hasConsole = await JSRuntime.InvokeAsync<bool>("eval", "typeof console !== 'undefined'");
                 Console.WriteLine($"🔄 BLAZOR: Console объект доступен: {hasConsole}");
-                
+
                 // Принудительно выводим сообщение в консоль
                 await JSRuntime.InvokeVoidAsync("console.log", "🔄 BLAZOR: Тест вызова JavaScript из Blazor");
-                
+
                 // Проверяем наш объект
                 var hasKanbanDragDrop = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.kanbanDragDrop !== 'undefined'");
                 Console.WriteLine($"🔄 BLAZOR: kanbanDragDrop объект доступен: {hasKanbanDragDrop}");
-                
+
                 if (!hasKanbanDragDrop)
                 {
                     Console.WriteLine("❌ BLAZOR: kanbanDragDrop не найден! Проверяем загрузку скрипта...");
-                    
+
                     // Попробуем загрузить скрипт принудительно
                     await JSRuntime.InvokeVoidAsync("eval", @"
-                        if (!window.kanbanDragDrop) {
-                            console.log('🔄 JS: Попытка принудительной загрузки kanbanDragDrop...');
-                            var script = document.createElement('script');
-                            script.src = 'js/kanban-drag-drop.js';
-                            script.onload = function() { console.log('✅ JS: Скрипт загружен принудительно'); };
-                            script.onerror = function() { console.log('❌ JS: Ошибка загрузки скрипта'); };
-                            document.head.appendChild(script);
-                        }
-                    ");
-                    
+if (!window.kanbanDragDrop) {
+console.log('🔄 JS: Попытка принудительной загрузки kanbanDragDrop...');
+var script = document.createElement('script');
+script.src = 'js/kanban-drag-drop.js';
+script.onload = function() { console.log('✅ JS: Скрипт загружен принудительно'); };
+script.onerror = function() { console.log('❌ JS: Ошибка загрузки скрипта'); };
+document.head.appendChild(script);
+}
+");
+
                     // Ждем загрузки
                     await Task.Delay(1000);
-                    
+
                     hasKanbanDragDrop = await JSRuntime.InvokeAsync<bool>("eval", "typeof window.kanbanDragDrop !== 'undefined'");
                     Console.WriteLine($"🔄 BLAZOR: После принудительной загрузки kanbanDragDrop доступен: {hasKanbanDragDrop}");
                 }
-                
+
                 if (hasKanbanDragDrop)
                 {
                     await InitializeDragAndDrop();
@@ -199,7 +197,7 @@
         }
         else if (jsInteropDone && !isTaskMoving)
         {
-            // Если это не первый рендер, но JS уже инициализирован, 
+            // Если это не первый рендер, но JS уже инициализирован,
             // переинициализируем drag-and-drop для всех задач
             Console.WriteLine("🔄 BLAZOR: Переинициализация drag-and-drop для обновленных задач...");
             await ReinitializeDragAndDrop();
@@ -209,21 +207,21 @@
             Console.WriteLine("⏸️ BLAZOR: Переинициализация пропущена - задача в процессе перемещения");
         }
     }
-    
+
     private async Task InitializeDragAndDrop()
     {
         try
         {
             Console.WriteLine("🚀 BLAZOR: Начинаем инициализацию drag-and-drop...");
-            
+
             // Инициализируем drag-and-drop для всех задач и колонок
             foreach (var column in Columns)
             {
                 Console.WriteLine($"🏗️ BLAZOR: Инициализация колонки: {column.Id} с {column.Tasks.Count} задачами");
-                
+
                 // Сначала инициализируем drop zone для колонки
                 await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initColumnDropZone", $"column-{column.Id}", column.Id, dotNetRef);
-                
+
                 // Затем инициализируем drag для всех задач в колонке
                 foreach (var task in column.Tasks)
                 {
@@ -231,7 +229,7 @@
                     await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initTaskDragDrop", $"task-{task.Id}", task.Id, column.Id);
                 }
             }
-            
+
             Console.WriteLine("✅ BLAZOR: Drag-and-drop инициализирован успешно!");
             jsInteropDone = true;
         }
@@ -246,10 +244,10 @@
         try
         {
             Console.WriteLine("🔄 BLAZOR: Переинициализация drag-and-drop...");
-            
+
             // Небольшая задержка, чтобы DOM успел обновиться
             await Task.Delay(100);
-            
+
             // Переинициализируем drag-and-drop для всех задач
             foreach (var column in Columns)
             {
@@ -259,7 +257,7 @@
                     await JSRuntime.InvokeVoidAsync("kanbanDragDrop.initTaskDragDrop", $"task-{task.Id}", task.Id, column.Id);
                 }
             }
-            
+
             Console.WriteLine("✅ BLAZOR: Переинициализация drag-and-drop завершена!");
         }
         catch (Exception ex)
@@ -273,7 +271,7 @@
         Console.WriteLine($"🖱️ BLAZOR: Клик по задаче: {task.Title}");
         await OnTaskClick.InvokeAsync(task);
     }
-    
+
     private void HandleTaskMouseEnter(KanbanTask task)
     {
         Console.WriteLine($"🐭 BLAZOR: Наведение мыши на задачу: {task.Title} (ID: {task.Id})");
@@ -292,20 +290,20 @@
     public async Task OnTaskDropped(string taskId, string fromColumnId, string toColumnId)
     {
         Console.WriteLine($"🎯 BLAZOR: Получен drop события - задача {taskId} из {fromColumnId} в {toColumnId}");
-        
+
         // Устанавливаем флаг для предотвращения переинициализации
         isTaskMoving = true;
-        
+
         var args = new TaskMovedEventArgs
         {
             TaskId = taskId,
             FromColumnId = fromColumnId,
             ToColumnId = toColumnId
         };
-        
+
         // Вызываем родительский обработчик
         await OnTaskMoved.InvokeAsync(args);
-        
+
         // Снимаем флаг через некоторое время
         _ = Task.Run(async () =>
         {
@@ -313,7 +311,7 @@
             isTaskMoving = false;
             Console.WriteLine($"🎯 BLAZOR: Флаг isTaskMoving сброшен для задачи {taskId}");
         });
-        
+
         Console.WriteLine($"✅ BLAZOR: Событие drop обработано и передано родителю");
     }
 
@@ -332,11 +330,11 @@
             _ => "bg-gray-100 text-gray-800"
         };
     }
-    
+
     private string GetDueDateClasses(DateTime dueDate)
     {
         var daysUntilDue = (dueDate.Date - DateTime.UtcNow.Date).Days;
-        
+
         if (daysUntilDue < 0)
             return "text-red-600 font-medium"; // Просрочено
         else if (daysUntilDue == 0)
@@ -346,20 +344,20 @@
         else
             return "text-gray-500"; // Обычная дата
     }
-    
+
     private string GetAssigneeColor(string assignee)
     {
         // Простая функция для генерации цвета на основе имени
         var hash = assignee.GetHashCode();
         var colors = new[]
         {
-            "bg-blue-500", "bg-green-500", "bg-purple-500", "bg-pink-500",
-            "bg-indigo-500", "bg-red-500", "bg-yellow-500", "bg-teal-500"
-        };
-        
+"bg-blue-500", "bg-green-500", "bg-purple-500", "bg-pink-500",
+"bg-indigo-500", "bg-red-500", "bg-yellow-500", "bg-teal-500"
+};
+
         return colors[Math.Abs(hash) % colors.Length];
     }
-    
+
     public async ValueTask DisposeAsync()
     {
         if (dotNetRef != null)

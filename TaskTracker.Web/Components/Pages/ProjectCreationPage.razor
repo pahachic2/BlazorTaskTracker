@@ -4,7 +4,7 @@
 @inject ILocalStorageService LocalStorage
 @inject IJSRuntime JSRuntime
 
-<div class="flex h-screen bg-gray-50">
+<div class="w-screen h-screen flex bg-gray-50">
     <!-- Новая боковая панель с проектами -->
     <ProjectSidebar Projects="availableProjects"
         SelectedProject="selectedProject"
@@ -15,7 +15,7 @@
         OnLogout="HandleLogout" />
 
     <!-- Основная часть (Main Content) -->
-    <main class="flex-1 flex flex-col overflow-hidden">
+    <main class="flex-1 w-full h-full flex flex-col">
         @if (selectedProject != null)
         {
             <!-- Используем компонент Header -->
