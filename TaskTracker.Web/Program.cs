@@ -23,4 +23,7 @@ builder.Services.AddScoped<ILocalStorageService, LocalStorageService>();
 // Регистрируем сервис для работы с API
 builder.Services.AddScoped<IApiService, ApiService>();
 
+// Регистрируем сервис для всплывающих сообщений
+builder.Services.AddScoped<IToastService, ToastService>();
+
 await builder.Build().RunAsync();

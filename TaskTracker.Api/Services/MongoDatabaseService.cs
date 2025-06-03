@@ -2,6 +2,7 @@ using MongoDB.Driver;
 using System.Linq.Expressions;
 using Microsoft.Extensions.Options;
 using TaskTracker.Api.Configuration;
+using MongoDB.Bson;
 
 namespace TaskTracker.Api.Services;
 
@@ -21,7 +22,7 @@ public class MongoDatabaseService<T> : IDatabaseService<T> where T : class
 
     public async Task<T?> GetByIdAsync(string id)
     {
-        var filter = Builders<T>.Filter.Eq("_id", id);
+        var filter = Builders<T>.Filter.Eq("_id", ObjectId.Parse(id));
         return await _collection.Find(filter).FirstOrDefaultAsync();
     }
 
@@ -36,14 +37,14 @@ public class MongoDatabaseService<T> : IDatabaseService<T> where T : class
 
     public async Task<T> UpdateAsync(string id, T entity)
     {
-        var filter = Builders<T>.Filter.Eq("_id", id);
+        var filter = Builders<T>.Filter.Eq("_id", ObjectId.Parse(id));
         await _collection.ReplaceOneAsync(filter, entity);
         return entity;
     }
 
     public async Task DeleteAsync(string id)
     {
-        var filter = Builders<T>.Filter.Eq("_id", id);
+        var filter = Builders<T>.Filter.Eq("_id", ObjectId.Parse(id));
         await _collection.DeleteOneAsync(filter);
     }
 } 

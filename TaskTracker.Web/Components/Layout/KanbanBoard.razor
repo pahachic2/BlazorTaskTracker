@@ -131,6 +131,7 @@
 
     private bool jsInteropDone = false;
     private DotNetObjectReference<KanbanBoard>? dotNetRef;
+    private bool isTaskMoving = false; // Флаг для предотвращения переинициализации во время перемещения
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -196,12 +197,16 @@
                 Console.WriteLine($"❌ BLAZOR: Ошибка при проверке JavaScript: {ex.Message}");
             }
         }
-        else if (jsInteropDone)
+        else if (jsInteropDone && !isTaskMoving)
         {
             // Если это не первый рендер, но JS уже инициализирован, 
             // переинициализируем drag-and-drop для всех задач
             Console.WriteLine("🔄 BLAZOR: Переинициализация drag-and-drop для обновленных задач...");
             await ReinitializeDragAndDrop();
+        }
+        else if (isTaskMoving)
+        {
+            Console.WriteLine("⏸️ BLAZOR: Переинициализация пропущена - задача в процессе перемещения");
         }
     }
     
@@ -288,6 +293,9 @@
     {
         Console.WriteLine($"🎯 BLAZOR: Получен drop события - задача {taskId} из {fromColumnId} в {toColumnId}");
         
+        // Устанавливаем флаг для предотвращения переинициализации
+        isTaskMoving = true;
+        
         var args = new TaskMovedEventArgs
         {
             TaskId = taskId,
@@ -297,6 +305,14 @@
         
         // Вызываем родительский обработчик
         await OnTaskMoved.InvokeAsync(args);
+        
+        // Снимаем флаг через некоторое время
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(300); // Даем время завершить операцию перемещения
+            isTaskMoving = false;
+            Console.WriteLine($"🎯 BLAZOR: Флаг isTaskMoving сброшен для задачи {taskId}");
+        });
         
         Console.WriteLine($"✅ BLAZOR: Событие drop обработано и передано родителю");
     }
@@ -364,10 +380,14 @@
     // Публичный метод для переинициализации drag-and-drop (для вызова извне)
     public async Task RefreshDragAndDrop()
     {
-        if (jsInteropDone)
+        if (jsInteropDone && !isTaskMoving)
         {
             Console.WriteLine("🔄 BLAZOR: Внешний вызов переинициализации drag-and-drop...");
             await ReinitializeDragAndDrop();
+        }
+        else if (isTaskMoving)
+        {
+            Console.WriteLine("⏸️ BLAZOR: Внешняя переинициализация пропущена - задача в процессе перемещения");
         }
     }
 }

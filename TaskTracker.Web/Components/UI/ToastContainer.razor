@@ -1,0 +1,83 @@
+@using TaskTracker.Web.Models
+@using TaskTracker.Web.Services
+@inject IToastService ToastService
+@implements IDisposable
+
+<!-- Контейнер для всплывающих сообщений -->
+<div class="fixed top-4 right-4 z-50 space-y-4 max-w-sm w-full">
+    @foreach (var toast in _toasts)
+    {
+        <Toast ToastMessage="toast" OnClose="RemoveToast" />
+    }
+</div>
+
+<!-- CSS для анимации прогресс бара -->
+<style>
+    .progress-bar {
+        animation: progress-shrink linear forwards;
+        width: 100%;
+    }
+
+    @@keyframes progress-shrink {
+        from {
+            width: 100%;
+        }
+        to {
+            width: 0%;
+        }
+    }
+</style>
+
+@code {
+    private readonly List<ToastMessage> _toasts = new();
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnToastAdded += AddToast;
+        ToastService.OnToastRemoved += RemoveToastById;
+    }
+
+    private void AddToast(ToastMessage toast)
+    {
+        _toasts.Add(toast);
+        
+        // Ограничиваем количество одновременных тостов (максимум 5)
+        while (_toasts.Count > 5)
+        {
+            _toasts.RemoveAt(0);
+        }
+        
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void RemoveToastById(string toastId)
+    {
+        if (toastId == "*")
+        {
+            // Очистить все
+            _toasts.Clear();
+        }
+        else
+        {
+            var toast = _toasts.FirstOrDefault(t => t.Id == toastId);
+            if (toast != null)
+            {
+                _toasts.Remove(toast);
+            }
+        }
+        
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RemoveToast(string toastId)
+    {
+        await Task.CompletedTask;
+        RemoveToastById(toastId);
+    }
+
+    public void Dispose()
+    {
+        ToastService.OnToastAdded -= AddToast;
+        ToastService.OnToastRemoved -= RemoveToastById;
+    }
+} 

@@ -3,6 +3,7 @@ window.kanbanDragDrop = {
     draggedTaskId: null,
     draggedFromColumnId: null,
     isInitialized: false,
+    dotNetRef: null, // Глобальное хранение ссылки на dotNetRef
 
     // Инициализация drag-and-drop для задачи
     initTaskDragDrop: function (taskElementId, taskId, columnId) {
@@ -83,6 +84,12 @@ window.kanbanDragDrop = {
     initColumnDropZone: function (columnElementId, columnId, dotNetRef) {
         console.log(`🏗️ JS: Инициализация drop zone для колонки: ${columnElementId}, ID: ${columnId}`);
         
+        // Сохраняем dotNetRef глобально для использования в других методах
+        if (dotNetRef) {
+            kanbanDragDrop.dotNetRef = dotNetRef;
+            console.log(`📌 JS: dotNetRef сохранен глобально`);
+        }
+        
         const columnElement = document.getElementById(columnElementId);
         if (!columnElement) {
             console.error(`❌ JS: Column element не найден: ${columnElementId}`);
@@ -134,20 +141,29 @@ window.kanbanDragDrop = {
             if (kanbanDragDrop.draggedTaskId && kanbanDragDrop.draggedFromColumnId !== columnId) {
                 console.log(`🚀 JS: Вызываем Blazor метод OnTaskDropped`);
                 try {
-                    if (dotNetRef && dotNetRef.invokeMethodAsync) {
-                        dotNetRef.invokeMethodAsync('OnTaskDropped', 
+                    // Используем глобальный dotNetRef или переданный локально
+                    const refToUse = dotNetRef || kanbanDragDrop.dotNetRef;
+                    if (refToUse && refToUse.invokeMethodAsync) {
+                        // Добавляем await для асинхронного вызова
+                        refToUse.invokeMethodAsync('OnTaskDropped', 
                             kanbanDragDrop.draggedTaskId, 
                             kanbanDragDrop.draggedFromColumnId, 
-                            columnId);
-                        console.log(`✅ JS: Blazor метод вызван успешно`);
-                        
-                        setTimeout(() => {
-                            kanbanDragDrop.updateTaskColumnId(kanbanDragDrop.draggedTaskId, columnId);
-                        }, 100);
+                            columnId)
+                        .then(() => {
+                            console.log(`✅ JS: Blazor метод OnTaskDropped выполнен успешно`);
+                            // Убираем updateTaskColumnId - пусть Blazor сам управляет DOM
+                            // setTimeout(() => {
+                            //     kanbanDragDrop.updateTaskColumnId(kanbanDragDrop.draggedTaskId, columnId);
+                            // }, 100);
+                        })
+                        .catch((error) => {
+                            console.error(`❌ JS: Ошибка выполнения OnTaskDropped:`, error);
+                        });
                     } else {
-                        console.log(`⚠️ JS: dotNetRef недоступен, используем fallback`);
-                        // Fallback: просто перемещаем элемент в DOM
-                        kanbanDragDrop.moveTaskInDOM(kanbanDragDrop.draggedTaskId, kanbanDragDrop.draggedFromColumnId, columnId);
+                        console.log(`⚠️ JS: dotNetRef недоступен, задача останется на месте`);
+                        console.log(`📝 JS: Для перемещения нужна инициализация Blazor компонента`);
+                        // Убираем fallback перемещение в DOM - пусть Blazor полностью управляет
+                        // kanbanDragDrop.moveTaskInDOM(kanbanDragDrop.draggedTaskId, kanbanDragDrop.draggedFromColumnId, columnId);
                     }
                 } catch (error) {
                     console.error(`❌ JS: Ошибка вызова Blazor метода:`, error);
@@ -214,7 +230,8 @@ window.kanbanDragDrop = {
         // Инициализируем колонки
         columns.forEach(column => {
             const columnId = column.id.replace('column-', '');
-            kanbanDragDrop.initColumnDropZone(column.id, columnId, null);
+            // Используем глобальный dotNetRef для автоинициализации
+            kanbanDragDrop.initColumnDropZone(column.id, columnId, kanbanDragDrop.dotNetRef);
         });
         
         // Инициализируем задачи
@@ -235,6 +252,7 @@ window.kanbanDragDrop = {
         console.log('🧹 JS: Очистка drag-and-drop обработчиков');
         kanbanDragDrop.draggedTaskId = null;
         kanbanDragDrop.draggedFromColumnId = null;
+        kanbanDragDrop.dotNetRef = null; // Очищаем глобальную ссылку
         kanbanDragDrop.isInitialized = false;
         
         // Очищаем все обработчики drag-and-drop

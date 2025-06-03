@@ -25,18 +25,31 @@ public class KanbanService : IKanbanService
     // Методы для колонок
     public async Task<List<ColumnResponse>> GetProjectColumnsAsync(string projectId, string userId)
     {
+        Console.WriteLine($"🔍 API: Запрос колонок для проекта {projectId} от пользователя {userId}");
+        
         // Проверяем доступ к проекту
         if (!await HasProjectAccessAsync(projectId, userId))
+        {
+            Console.WriteLine($"❌ API: Нет доступа к проекту {projectId}");
             return new List<ColumnResponse>();
+        }
 
         var columns = await _columnDatabase.FindAsync(c => c.ProjectId == projectId);
         var sortedColumns = columns.OrderBy(c => c.Order).ToList();
+
+        Console.WriteLine($"📂 API: Найдено {sortedColumns.Count} колонок для проекта {projectId}");
 
         var result = new List<ColumnResponse>();
         foreach (var column in sortedColumns)
         {
             var tasks = await _taskDatabase.FindAsync(t => t.ColumnId == column.Id);
             var sortedTasks = tasks.OrderBy(t => t.Order).ToList();
+
+            Console.WriteLine($"📋 API: Колонка '{column.Title}' (ID: {column.Id}) содержит {sortedTasks.Count} задач:");
+            foreach (var task in sortedTasks)
+            {
+                Console.WriteLine($"   📝 API: Задача '{task.Title}' (ID: {task.Id})");
+            }
 
             result.Add(new ColumnResponse
             {
@@ -50,6 +63,7 @@ public class KanbanService : IKanbanService
             });
         }
 
+        Console.WriteLine($"✅ API: Возвращаем {result.Count} колонок с общим количеством задач: {result.Sum(c => c.Tasks.Count)}");
         return result;
     }
 
@@ -152,7 +166,24 @@ public class KanbanService : IKanbanService
     {
         var task = await _taskDatabase.GetByIdAsync(taskId);
         if (task == null)
+        {
+            Console.WriteLine($"❌ API: Задача {taskId} не найдена в базе данных");
+            
+            // Дополнительная диагностика - посмотрим все задачи в базе
+            var allTasks = await _taskDatabase.FindAsync(t => true);
+            Console.WriteLine($"📊 API: Всего задач в базе данных: {allTasks.Count()}");
+            
+            if (allTasks.Any())
+            {
+                Console.WriteLine($"📋 API: Первые 5 задач в базе:");
+                foreach (var t in allTasks.Take(5))
+                {
+                    Console.WriteLine($"   - ID: {t.Id}, Title: {t.Title}, Project: {t.ProjectId}, Column: {t.ColumnId}");
+                }
+            }
+            
             return null;
+        }
 
         // Проверяем доступ к проекту
         if (!await HasProjectAccessAsync(task.ProjectId, userId))
@@ -240,24 +271,49 @@ public class KanbanService : IKanbanService
 
     public async Task<TaskResponse?> MoveTaskAsync(string taskId, MoveTaskRequest request, string userId)
     {
+        Console.WriteLine($"🔍 API: Попытка перемещения задачи {taskId} в колонку {request.NewColumnId} пользователем {userId}");
+        
         var task = await _taskDatabase.GetByIdAsync(taskId);
         if (task == null)
+        {
+            Console.WriteLine($"❌ API: Задача {taskId} не найдена в базе данных");
             return null;
+        }
+
+        Console.WriteLine($"✅ API: Задача {taskId} найдена в проекте {task.ProjectId}");
 
         // Проверяем доступ к проекту
-        if (!await HasProjectAccessAsync(task.ProjectId, userId))
+        var hasAccess = await HasProjectAccessAsync(task.ProjectId, userId);
+        if (!hasAccess)
+        {
+            Console.WriteLine($"❌ API: Пользователь {userId} не имеет доступа к проекту {task.ProjectId}");
             return null;
+        }
+
+        Console.WriteLine($"✅ API: Доступ к проекту {task.ProjectId} подтвержден");
 
         // Проверяем, что новая колонка существует и принадлежит тому же проекту
         var newColumn = await _columnDatabase.GetByIdAsync(request.NewColumnId);
-        if (newColumn == null || newColumn.ProjectId != task.ProjectId)
+        if (newColumn == null)
+        {
+            Console.WriteLine($"❌ API: Новая колонка {request.NewColumnId} не найдена");
             return null;
+        }
+        
+        if (newColumn.ProjectId != task.ProjectId)
+        {
+            Console.WriteLine($"❌ API: Колонка {request.NewColumnId} принадлежит проекту {newColumn.ProjectId}, а задача - проекту {task.ProjectId}");
+            return null;
+        }
+
+        Console.WriteLine($"✅ API: Новая колонка {request.NewColumnId} найдена и принадлежит тому же проекту");
 
         task.ColumnId = request.NewColumnId;
         task.Order = request.NewOrder;
         task.UpdatedAt = DateTime.UtcNow;
 
         // Обновляем статус задачи в зависимости от колонки
+        var oldStatus = task.Status;
         task.Status = newColumn.Title.ToLower() switch
         {
             "to do" => Models.TaskStatus.ToDo,
@@ -266,7 +322,11 @@ public class KanbanService : IKanbanService
             _ => task.Status
         };
 
+        Console.WriteLine($"🔄 API: Обновление задачи - колонка: {task.ColumnId}, порядок: {task.Order}, статус: {oldStatus} -> {task.Status}");
+
         await _taskDatabase.UpdateAsync(taskId, task);
+
+        Console.WriteLine($"✅ API: Задача {taskId} успешно перемещена в колонку {request.NewColumnId}");
 
         return MapTaskToResponse(task);
     }
@@ -274,10 +334,25 @@ public class KanbanService : IKanbanService
     // Вспомогательные методы
     private async Task<bool> HasProjectAccessAsync(string projectId, string userId)
     {
+        Console.WriteLine($"🔍 API: Проверка доступа пользователя {userId} к проекту {projectId}");
+        
         var userProjects = await _userProjectDatabase.FindAsync(
             up => up.ProjectId == projectId && up.UserId == userId && up.IsActive);
         
-        return userProjects.Any();
+        var hasAccess = userProjects.Any();
+        Console.WriteLine($"🔍 API: Найдено {userProjects.Count()} активных связей пользователя с проектом. Доступ: {hasAccess}");
+        
+        if (!hasAccess)
+        {
+            // Дополнительная диагностика
+            var allUserProjects = await _userProjectDatabase.FindAsync(up => up.UserId == userId);
+            Console.WriteLine($"📊 API: Всего проектов у пользователя {userId}: {allUserProjects.Count()}");
+            
+            var projectConnections = await _userProjectDatabase.FindAsync(up => up.ProjectId == projectId);
+            Console.WriteLine($"📊 API: Всего пользователей в проекте {projectId}: {projectConnections.Count()}");
+        }
+        
+        return hasAccess;
     }
 
     private async Task<int> GetNextTaskOrderAsync(string columnId)
