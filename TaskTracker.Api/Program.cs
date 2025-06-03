@@ -22,6 +22,7 @@ builder.Services.AddScoped(typeof(IDatabaseService<>), typeof(MongoDatabaseServi
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IKanbanService, KanbanService>();
 builder.Services.AddScoped<DataSeederService>();
 
@@ -96,6 +97,9 @@ app.MapAuthEndpoints();
 
 // Регистрируем project endpoints
 app.MapProjectEndpoints();
+
+// Регистрируем organization endpoints
+app.MapOrganizationEndpoints();
 
 // Регистрируем kanban endpoints
 app.MapKanbanEndpoints();
