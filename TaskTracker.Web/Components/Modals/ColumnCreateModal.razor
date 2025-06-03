@@ -1,0 +1,190 @@
+@using System.ComponentModel.DataAnnotations
+@* Модальное окно для создания колонки *@
+
+@if (IsVisible)
+{
+    <div class="fixed inset-0 z-50 overflow-y-auto">
+        <!-- Затемненный фон -->
+        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @onclick="HandleClose"></div>
+        
+        <!-- Центрированное модальное окно -->
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <!-- Заголовок -->
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold text-gray-900">Создать новую колонку</h3>
+                        <button @onclick="HandleClose" 
+                                class="text-gray-400 hover:text-gray-600 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Содержимое формы -->
+                <div class="px-6 py-4">
+                    <EditForm Model="columnModel" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        <!-- Название колонки -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Название колонки <span class="text-red-500">*</span>
+                            </label>
+                            <InputText @bind-Value="columnModel.Title" 
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      placeholder="Введите название колонки" />
+                            <ValidationMessage For="@(() => columnModel.Title)" class="text-red-500 text-xs mt-1" />
+                        </div>
+
+                        <!-- Предустановленные варианты -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Быстрый выбор
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                @foreach (var preset in presetColumns)
+                                {
+                                    <button type="button" 
+                                            @onclick="@(() => SelectPreset(preset))"
+                                            class="@GetPresetButtonClasses(preset) px-3 py-2 text-sm rounded-lg border transition-colors">
+                                        @preset
+                                    </button>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Порядок сортировки -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Позиция
+                            </label>
+                            <select @bind="columnModel.Order" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                @for (int i = 0; i <= MaxOrder; i++)
+                                {
+                                    <option value="@i">
+                                        @if (i == 0)
+                                        {
+                                            <text>В начале</text>
+                                        }
+                                        else if (i == MaxOrder)
+                                        {
+                                            <text>В конце</text>
+                                        }
+                                        else
+                                        {
+                                            <text>Позиция @(i + 1)</text>
+                                        }
+                                    </option>
+                                }
+                            </select>
+                            <p class="text-xs text-gray-500 mt-1">Выберите, где разместить новую колонку</p>
+                        </div>
+
+                        <!-- Кнопки -->
+                        <div class="flex space-x-3">
+                            <button type="button" 
+                                    @onclick="HandleClose"
+                                    class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                                Отмена
+                            </button>
+                            <button type="submit" 
+                                    disabled="@(!IsFormValid())"
+                                    class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
+                                Создать колонку
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string ProjectId { get; set; } = "";
+    [Parameter] public int MaxOrder { get; set; } = 0;
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<KanbanColumn> OnColumnCreated { get; set; }
+
+    private ColumnCreateModel columnModel = new();
+    
+    private readonly List<string> presetColumns = new()
+    {
+        "To Do", "В работе", "На проверке", "Готово",
+        "Backlog", "В процессе", "Тестирование", "Завершено",
+        "Новые", "Активные", "Заблокированные", "Закрытые"
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (IsVisible)
+        {
+            // Сбрасываем форму при каждом открытии
+            columnModel = new ColumnCreateModel
+            {
+                ProjectId = ProjectId,
+                Order = MaxOrder // По умолчанию добавляем в конец
+            };
+        }
+    }
+
+    private async Task HandleClose()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (IsFormValid())
+        {
+            var newColumn = new KanbanColumn
+            {
+                Id = Guid.NewGuid().ToString(),
+                Title = columnModel.Title,
+                ProjectId = columnModel.ProjectId,
+                Order = columnModel.Order,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                Tasks = new List<KanbanTask>()
+            };
+
+            Console.WriteLine($"✅ Создана новая колонка: {newColumn.Title} в позиции {newColumn.Order}");
+            await OnColumnCreated.InvokeAsync(newColumn);
+            await HandleClose();
+        }
+    }
+
+    private void SelectPreset(string preset)
+    {
+        columnModel.Title = preset;
+    }
+
+    private bool IsFormValid()
+    {
+        return !string.IsNullOrWhiteSpace(columnModel.Title);
+    }
+
+    private string GetPresetButtonClasses(string preset)
+    {
+        if (columnModel.Title == preset)
+        {
+            return "bg-blue-100 border-blue-500 text-blue-700";
+        }
+        return "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100";
+    }
+
+    public class ColumnCreateModel
+    {
+        [Required(ErrorMessage = "Название колонки обязательно")]
+        [StringLength(100, ErrorMessage = "Название не должно превышать 100 символов")]
+        public string Title { get; set; } = "";
+        
+        public string ProjectId { get; set; } = "";
+        public int Order { get; set; } = 0;
+    }
+} 
