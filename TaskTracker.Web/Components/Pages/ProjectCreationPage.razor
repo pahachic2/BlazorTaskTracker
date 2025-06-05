@@ -72,7 +72,8 @@
                             OnAddTaskToColumn="HandleAddTaskToColumn"
                             OnAddColumn="HandleAddColumn"
                             OnTaskMoved="HandleTaskMoved"
-                            OnTaskDelete="HandleTaskDelete" />
+                            OnTaskDelete="HandleTaskDelete"
+                            OnColumnDelete="HandleColumnDelete" />
                     </div>
                 </div>
             </div>
@@ -150,6 +151,12 @@
     OnCancel="HandleCancelDeleteTask"
     OnConfirm="HandleConfirmDeleteTask" />
 
+<!-- Модальное окно удаления колонки -->
+<ColumnDeleteModal IsVisible="isDeleteColumnModalVisible"
+    ColumnToDelete="columnToDelete"
+    OnCancel="HandleCancelDeleteColumn"
+    OnConfirm="HandleConfirmDeleteColumn" />
+
 @code {
     // Данные организаций
     private List<Organization> availableOrganizations = new();
@@ -167,6 +174,7 @@
     private bool isCreateOrganizationModalVisible = false;
     private bool isCreateColumnModalVisible = false;
     private bool isDeleteTaskModalVisible = false;
+    private bool isDeleteColumnModalVisible = false;
 
     // Мобильное меню
     private bool isMobileMenuOpen = false;
@@ -180,6 +188,7 @@
 
     // Задача для удаления
     private KanbanTask? taskToDelete = null;
+    private KanbanColumn? columnToDelete = null;
 
     // Ссылка на компонент KanbanBoard для переинициализации drag-and-drop
     private KanbanBoard? kanbanBoardRef;
@@ -664,6 +673,58 @@
             // Закрываем модальное окно и обновляем UI
             isDeleteTaskModalVisible = false;
             taskToDelete = null;
+            StateHasChanged(); // Принудительно обновляем UI
+            Console.WriteLine("🚪 Модальное окно удаления закрыто");
+        }
+    }
+
+    // Обработчик для удаления колонки
+    private void HandleColumnDelete(KanbanColumn column)
+    {
+        Console.WriteLine($"🗑️ Запрос на удаление колонки: {column.Title}");
+        columnToDelete = column;
+        isDeleteColumnModalVisible = true;
+    }
+
+    private void HandleCancelDeleteColumn()
+    {
+        Console.WriteLine("❌ Отменено удаление колонки");
+        isDeleteColumnModalVisible = false;
+        columnToDelete = null;
+    }
+
+    private async Task HandleConfirmDeleteColumn(KanbanColumn column)
+    {
+        Console.WriteLine($"✅ Подтверждено удаление колонки: {column.Title}");
+        
+        try
+        {
+            Console.WriteLine($"📤 Отправляем запрос удаления колонки в API: {column.Id}");
+            
+            var success = await ApiService.DeleteColumnAsync(column.Id);
+            
+            if (success)
+            {
+                Console.WriteLine($"✅ Колонка успешно удалена из API: {column.Title}");
+                
+                // Перезагружаем колонки для обновления данных
+                await LoadProjectColumnsAsync();
+                StateHasChanged();
+            }
+            else
+            {
+                Console.WriteLine($"❌ Не удалось удалить колонку {column.Title}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка удаления колонки: {ex.Message}");
+        }
+        finally
+        {
+            // Закрываем модальное окно и обновляем UI
+            isDeleteColumnModalVisible = false;
+            columnToDelete = null;
             StateHasChanged(); // Принудительно обновляем UI
             Console.WriteLine("🚪 Модальное окно удаления закрыто");
         }
