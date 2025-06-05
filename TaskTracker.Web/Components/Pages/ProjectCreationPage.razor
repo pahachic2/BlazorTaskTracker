@@ -71,7 +71,8 @@
                             OnTaskClick="HandleTaskClick"
                             OnAddTaskToColumn="HandleAddTaskToColumn"
                             OnAddColumn="HandleAddColumn"
-                            OnTaskMoved="HandleTaskMoved" />
+                            OnTaskMoved="HandleTaskMoved"
+                            OnTaskDelete="HandleTaskDelete" />
                     </div>
                 </div>
             </div>
@@ -143,6 +144,12 @@
     OnClose="HandleCloseColumnModal"
     OnColumnCreated="HandleColumnCreated" />
 
+<!-- Модальное окно удаления задачи -->
+<TaskDeleteModal IsVisible="isDeleteTaskModalVisible"
+    TaskToDelete="taskToDelete"
+    OnCancel="HandleCancelDeleteTask"
+    OnConfirm="HandleConfirmDeleteTask" />
+
 @code {
     // Данные организаций
     private List<Organization> availableOrganizations = new();
@@ -159,6 +166,7 @@
     private bool isCreateProjectModalVisible = false;
     private bool isCreateOrganizationModalVisible = false;
     private bool isCreateColumnModalVisible = false;
+    private bool isDeleteTaskModalVisible = false;
 
     // Мобильное меню
     private bool isMobileMenuOpen = false;
@@ -169,6 +177,9 @@
 
     // ID организации для создания нового проекта
     private string selectedOrganizationIdForNewProject = "";
+
+    // Задача для удаления
+    private KanbanTask? taskToDelete = null;
 
     // Ссылка на компонент KanbanBoard для переинициализации drag-and-drop
     private KanbanBoard? kanbanBoardRef;
@@ -597,6 +608,64 @@
             // В случае ошибки перезагружаем данные для отката изменений
             await LoadProjectColumnsAsync();
             StateHasChanged();
+        }
+    }
+
+    // Обработчик для удаления задачи
+    private void HandleTaskDelete(KanbanTask task)
+    {
+        Console.WriteLine($"🗑️ Запрос на удаление задачи: {task.Title}");
+        taskToDelete = task;
+        isDeleteTaskModalVisible = true;
+    }
+
+    private void HandleCancelDeleteTask()
+    {
+        Console.WriteLine("❌ Отменено удаление задачи");
+        isDeleteTaskModalVisible = false;
+        taskToDelete = null;
+    }
+
+    private async Task HandleConfirmDeleteTask(KanbanTask task)
+    {
+        Console.WriteLine($"✅ Подтверждено удаление задачи: {task.Title}");
+        
+        try
+        {
+            Console.WriteLine($"📤 Отправляем запрос удаления задачи в API: {task.Id}");
+            
+            var success = await ApiService.DeleteTaskAsync(task.Id);
+            
+            if (success)
+            {
+                Console.WriteLine($"✅ Задача успешно удалена из API: {task.Title}");
+                
+                // Перезагружаем колонки для обновления данных
+                await LoadProjectColumnsAsync();
+
+                // Переинициализируем drag-and-drop
+                if (kanbanBoardRef != null)
+                {
+                    Console.WriteLine("🔄 Переинициализация drag-and-drop после удаления задачи...");
+                    await kanbanBoardRef.RefreshDragAndDrop();
+                }
+            }
+            else
+            {
+                Console.WriteLine($"❌ Не удалось удалить задачу {task.Title}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка удаления задачи: {ex.Message}");
+        }
+        finally
+        {
+            // Закрываем модальное окно и обновляем UI
+            isDeleteTaskModalVisible = false;
+            taskToDelete = null;
+            StateHasChanged(); // Принудительно обновляем UI
+            Console.WriteLine("🚪 Модальное окно удаления закрыто");
         }
     }
 }

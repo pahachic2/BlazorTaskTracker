@@ -20,73 +20,85 @@
                 @foreach (var task in column.Tasks)
                 {
                     <div id="task-@task.Id" data-task-id="@task.Id" data-column-id="@column.Id"
-                        class="kanban-task bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
-                        @onclick="@(() => HandleTaskClick(task))" @onmouseenter="@(() => HandleTaskMouseEnter(task))"
+                        class="kanban-task bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow group relative"
+                        @onmouseenter="@(() => HandleTaskMouseEnter(task))"
                         @onclick:preventDefault="false" @onclick:stopPropagation="false">
 
-                        <!-- Теги задачи -->
-                        @if (task.Tags.Any())
-                        {
-                            <div class="flex flex-wrap gap-1 mb-3">
-                                @foreach (var tag in task.Tags)
+                        <!-- Кнопка удаления (появляется при наведении) -->
+                        <button @onclick="@(() => HandleDeleteTask(task))" @onclick:stopPropagation="true"
+                                class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
+                                title="Удалить задачу">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+
+                        <!-- Область клика для открытия задачи -->
+                        <div @onclick="@(() => HandleTaskClick(task))" class="cursor-pointer">
+                            <!-- Теги задачи -->
+                            @if (task.Tags.Any())
+                            {
+                                <div class="flex flex-wrap gap-1 mb-3">
+                                    @foreach (var tag in task.Tags)
+                                    {
+                                        <span class="@GetTagClasses(tag) px-2 py-1 rounded text-xs font-medium">
+                                            @tag
+                                        </span>
+                                    }
+                                </div>
+                            }
+
+                            <!-- Заголовок задачи -->
+                            <h4 class="font-medium text-gray-900 text-sm mb-2 line-clamp-2">
+                                @task.Title
+                            </h4>
+
+                            <!-- Описание задачи -->
+                            @if (!string.IsNullOrEmpty(task.Description))
+                            {
+                                <p class="text-gray-600 text-xs mb-3 line-clamp-2">
+                                    @task.Description
+                                </p>
+                            }
+
+                            <!-- Нижняя часть карточки -->
+                            <div class="flex items-center justify-between">
+                                <!-- Дата выполнения -->
+                                @if (task.DueDate.HasValue)
                                 {
-                                    <span class="@GetTagClasses(tag) px-2 py-1 rounded text-xs font-medium">
-                                        @tag
-                                    </span>
+                                    <div class="flex items-center space-x-1">
+                                        <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                            </path>
+                                        </svg>
+                                        <span class="@GetDueDateClasses(task.DueDate.Value) text-xs">
+                                            @task.DueDate.Value.ToString("dd MMM")
+                                        </span>
+                                    </div>
+                                }
+
+                                <!-- Аватары исполнителей -->
+                                @if (task.Assignees.Any())
+                                {
+                                    <div class="flex -space-x-1">
+                                        @foreach (var assignee in task.Assignees.Take(3))
+                                        {
+                                            <div class="w-6 h-6 rounded-full @GetAssigneeColor(assignee) flex items-center justify-center border-2 border-white text-white text-xs font-medium"
+                                                title="@assignee">
+                                                @assignee.Substring(0, 1).ToUpper()
+                                            </div>
+                                        }
+                                        @if (task.Assignees.Count > 3)
+                                        {
+                                            <div class="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center border-2 border-white text-white text-xs font-medium"
+                                                title="Еще @(task.Assignees.Count - 3)">
+                                                +@(task.Assignees.Count - 3)
+                                            </div>
+                                        }
+                                    </div>
                                 }
                             </div>
-                        }
-
-                        <!-- Заголовок задачи -->
-                        <h4 class="font-medium text-gray-900 text-sm mb-2 line-clamp-2">
-                            @task.Title
-                        </h4>
-
-                        <!-- Описание задачи -->
-                        @if (!string.IsNullOrEmpty(task.Description))
-                        {
-                            <p class="text-gray-600 text-xs mb-3 line-clamp-2">
-                                @task.Description
-                            </p>
-                        }
-
-                        <!-- Нижняя часть карточки -->
-                        <div class="flex items-center justify-between">
-                            <!-- Дата выполнения -->
-                            @if (task.DueDate.HasValue)
-                            {
-                                <div class="flex items-center space-x-1">
-                                    <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                        </path>
-                                    </svg>
-                                    <span class="@GetDueDateClasses(task.DueDate.Value) text-xs">
-                                        @task.DueDate.Value.ToString("dd MMM")
-                                    </span>
-                                </div>
-                            }
-
-                            <!-- Аватары исполнителей -->
-                            @if (task.Assignees.Any())
-                            {
-                                <div class="flex -space-x-1">
-                                    @foreach (var assignee in task.Assignees.Take(3))
-                                    {
-                                        <div class="w-6 h-6 rounded-full @GetAssigneeColor(assignee) flex items-center justify-center border-2 border-white text-white text-xs font-medium"
-                                            title="@assignee">
-                                            @assignee.Substring(0, 1).ToUpper()
-                                        </div>
-                                    }
-                                    @if (task.Assignees.Count > 3)
-                                    {
-                                        <div class="w-6 h-6 rounded-full bg-gray-400 flex items-center justify-center border-2 border-white text-white text-xs font-medium"
-                                            title="Еще @(task.Assignees.Count - 3)">
-                                            +@(task.Assignees.Count - 3)
-                                        </div>
-                                    }
-                                </div>
-                            }
                         </div>
                     </div>
                 }
@@ -126,6 +138,7 @@
     [Parameter] public EventCallback<string> OnAddTaskToColumn { get; set; }
     [Parameter] public EventCallback OnAddColumn { get; set; }
     [Parameter] public EventCallback<TaskMovedEventArgs> OnTaskMoved { get; set; }
+    [Parameter] public EventCallback<KanbanTask> OnTaskDelete { get; set; }
 
     private bool jsInteropDone = false;
     private DotNetObjectReference<KanbanBoard>? dotNetRef;
@@ -283,6 +296,15 @@ document.head.appendChild(script);
         if (OnAddColumn.HasDelegate)
         {
             await OnAddColumn.InvokeAsync();
+        }
+    }
+
+    private async Task HandleDeleteTask(KanbanTask task)
+    {
+        Console.WriteLine($"🗑️ KANBAN: Запрос на удаление задачи: {task.Title}");
+        if (OnTaskDelete.HasDelegate)
+        {
+            await OnTaskDelete.InvokeAsync(task);
         }
     }
 
