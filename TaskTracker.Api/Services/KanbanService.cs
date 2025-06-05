@@ -9,17 +9,20 @@ public class KanbanService : IKanbanService
     private readonly IDatabaseService<KanbanTask> _taskDatabase;
     private readonly IDatabaseService<Project> _projectDatabase;
     private readonly IDatabaseService<UserProject> _userProjectDatabase;
+    private readonly IDatabaseService<UserOrganization> _userOrganizationDatabase;
 
     public KanbanService(
         IDatabaseService<KanbanColumn> columnDatabase,
         IDatabaseService<KanbanTask> taskDatabase,
         IDatabaseService<Project> projectDatabase,
-        IDatabaseService<UserProject> userProjectDatabase)
+        IDatabaseService<UserProject> userProjectDatabase,
+        IDatabaseService<UserOrganization> userOrganizationDatabase)
     {
         _columnDatabase = columnDatabase;
         _taskDatabase = taskDatabase;
         _projectDatabase = projectDatabase;
         _userProjectDatabase = userProjectDatabase;
+        _userOrganizationDatabase = userOrganizationDatabase;
     }
 
     // Методы для колонок
@@ -336,23 +339,46 @@ public class KanbanService : IKanbanService
     {
         Console.WriteLine($"🔍 API: Проверка доступа пользователя {userId} к проекту {projectId}");
         
+        // Сначала проверяем прямое членство в проекте (старая логика)
         var userProjects = await _userProjectDatabase.FindAsync(
             up => up.ProjectId == projectId && up.UserId == userId && up.IsActive);
         
-        var hasAccess = userProjects.Any();
-        Console.WriteLine($"🔍 API: Найдено {userProjects.Count()} активных связей пользователя с проектом. Доступ: {hasAccess}");
+        if (userProjects.Any())
+        {
+            Console.WriteLine($"✅ API: Найден прямой доступ к проекту через UserProject");
+            return true;
+        }
         
-        if (!hasAccess)
+        // Теперь проверяем доступ через организацию (новая логика)
+        var project = await _projectDatabase.GetByIdAsync(projectId);
+        if (project == null)
+        {
+            Console.WriteLine($"❌ API: Проект {projectId} не найден");
+            return false;
+        }
+        
+        Console.WriteLine($"🔍 API: Проект принадлежит организации {project.OrganizationId}");
+        
+        // Проверяем, является ли пользователь членом организации
+        var userOrganizations = await _userOrganizationDatabase.FindAsync(
+            uo => uo.OrganizationId == project.OrganizationId && uo.UserId == userId && uo.IsActive);
+        
+        var hasOrgAccess = userOrganizations.Any();
+        Console.WriteLine($"🔍 API: Доступ к организации {project.OrganizationId}: {hasOrgAccess}");
+        
+        if (!hasOrgAccess)
         {
             // Дополнительная диагностика
             var allUserProjects = await _userProjectDatabase.FindAsync(up => up.UserId == userId);
+            var allUserOrgs = await _userOrganizationDatabase.FindAsync(uo => uo.UserId == userId);
             Console.WriteLine($"📊 API: Всего проектов у пользователя {userId}: {allUserProjects.Count()}");
+            Console.WriteLine($"📊 API: Всего организаций у пользователя {userId}: {allUserOrgs.Count()}");
             
             var projectConnections = await _userProjectDatabase.FindAsync(up => up.ProjectId == projectId);
             Console.WriteLine($"📊 API: Всего пользователей в проекте {projectId}: {projectConnections.Count()}");
         }
         
-        return hasAccess;
+        return hasOrgAccess;
     }
 
     private async Task<int> GetNextTaskOrderAsync(string columnId)

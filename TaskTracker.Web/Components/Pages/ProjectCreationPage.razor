@@ -454,15 +454,39 @@
     {
         Console.WriteLine($"✅ Создана новая колонка: {newColumn.Title}");
         
+        if (selectedProject == null) return;
+        
         try
         {
-            // Перезагружаем колонки для обновления данных
-            await LoadProjectColumnsAsync();
-            StateHasChanged();
+            // Создаем запрос для API
+            var createRequest = new CreateColumnRequest
+            {
+                Title = newColumn.Title,
+                ProjectId = selectedProject.Id,
+                Order = newColumn.Order
+            };
+
+            Console.WriteLine($"📤 Отправляем запрос создания колонки в API для проекта: {selectedProject.Id}");
+            
+            // Отправляем запрос в API
+            var createdColumn = await ApiService.CreateColumnAsync(createRequest);
+            
+            if (createdColumn != null)
+            {
+                Console.WriteLine($"✅ Колонка успешно создана в API: {createdColumn.Title} (ID: {createdColumn.Id})");
+                
+                // Перезагружаем колонки для обновления данных
+                await LoadProjectColumnsAsync();
+                StateHasChanged();
+            }
+            else
+            {
+                Console.WriteLine($"❌ API вернул null при создании колонки {newColumn.Title}");
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Ошибка при обновлении колонок: {ex.Message}");
+            Console.WriteLine($"❌ Ошибка создания колонки: {ex.Message}");
         }
     }
 
