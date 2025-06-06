@@ -10,19 +10,22 @@ public class KanbanService : IKanbanService
     private readonly IDatabaseService<Project> _projectDatabase;
     private readonly IDatabaseService<UserProject> _userProjectDatabase;
     private readonly IDatabaseService<UserOrganization> _userOrganizationDatabase;
+    private readonly IDatabaseService<User> _userDatabase;
 
     public KanbanService(
         IDatabaseService<KanbanColumn> columnDatabase,
         IDatabaseService<KanbanTask> taskDatabase,
         IDatabaseService<Project> projectDatabase,
         IDatabaseService<UserProject> userProjectDatabase,
-        IDatabaseService<UserOrganization> userOrganizationDatabase)
+        IDatabaseService<UserOrganization> userOrganizationDatabase,
+        IDatabaseService<User> userDatabase)
     {
         _columnDatabase = columnDatabase;
         _taskDatabase = taskDatabase;
         _projectDatabase = projectDatabase;
         _userProjectDatabase = userProjectDatabase;
         _userOrganizationDatabase = userOrganizationDatabase;
+        _userDatabase = userDatabase;
     }
 
     // Методы для колонок
@@ -62,7 +65,7 @@ public class KanbanService : IKanbanService
                 Order = column.Order,
                 CreatedAt = column.CreatedAt,
                 UpdatedAt = column.UpdatedAt,
-                Tasks = sortedTasks.Select(MapTaskToResponse).ToList()
+                Tasks = (await Task.WhenAll(sortedTasks.Select(async t => await MapTaskToResponseAsync(t)))).ToList()
             });
         }
 
@@ -125,7 +128,7 @@ public class KanbanService : IKanbanService
             Order = column.Order,
             CreatedAt = column.CreatedAt,
             UpdatedAt = column.UpdatedAt,
-            Tasks = tasks.OrderBy(t => t.Order).Select(MapTaskToResponse).ToList()
+            Tasks = (await Task.WhenAll(tasks.OrderBy(t => t.Order).Select(async t => await MapTaskToResponseAsync(t)))).ToList()
         };
     }
 
@@ -162,7 +165,8 @@ public class KanbanService : IKanbanService
             return new List<TaskResponse>();
 
         var tasks = await _taskDatabase.FindAsync(t => t.ColumnId == columnId);
-        return tasks.OrderBy(t => t.Order).Select(MapTaskToResponse).ToList();
+        var sortedTasks = tasks.OrderBy(t => t.Order);
+        return (await Task.WhenAll(sortedTasks.Select(async t => await MapTaskToResponseAsync(t)))).ToList();
     }
 
     public async Task<TaskResponse?> GetTaskByIdAsync(string taskId, string userId)
@@ -192,7 +196,7 @@ public class KanbanService : IKanbanService
         if (!await HasProjectAccessAsync(task.ProjectId, userId))
             return null;
 
-        return MapTaskToResponse(task);
+        return await MapTaskToResponseAsync(task);
     }
 
     public async Task<TaskResponse> CreateTaskAsync(CreateTaskRequest request, string userId)
@@ -205,12 +209,15 @@ public class KanbanService : IKanbanService
         if (!await HasProjectAccessAsync(request.ProjectId, userId))
             throw new UnauthorizedAccessException("Нет доступа к проекту");
 
+        // Валидируем и конвертируем исполнителей
+        var validatedAssigneeIds = await ValidateAssigneesAsync(request.AssigneeIds ?? new List<string>(), request.ProjectId);
+
         var task = new KanbanTask
         {
             Title = request.Title,
             Description = request.Description ?? string.Empty,
             Tags = request.Tags,
-            Assignees = request.Assignees,
+            AssigneeIds = validatedAssigneeIds,
             DueDate = request.DueDate,
             ColumnId = request.ColumnId,
             ProjectId = request.ProjectId,
@@ -223,11 +230,12 @@ public class KanbanService : IKanbanService
         };
 
         await _taskDatabase.CreateAsync(task);
+        Console.WriteLine($"✅ KANBAN: Создана задача {task.Id} с исполнителями: {string.Join(", ", validatedAssigneeIds)}");
 
         // Обновляем счетчик задач в проекте
         await UpdateProjectTaskCountAsync(request.ProjectId);
 
-        return MapTaskToResponse(task);
+        return await MapTaskToResponseAsync(task);
     }
 
     public async Task<TaskResponse?> UpdateTaskAsync(string taskId, UpdateTaskRequest request, string userId)
@@ -240,18 +248,22 @@ public class KanbanService : IKanbanService
         if (!await HasProjectAccessAsync(task.ProjectId, userId))
             return null;
 
+        // Валидируем новых исполнителей
+        var validatedAssigneeIds = await ValidateAssigneesAsync(request.AssigneeIds ?? new List<string>(), task.ProjectId);
+
         task.Title = request.Title;
         task.Description = request.Description ?? string.Empty;
         task.Tags = request.Tags;
-        task.Assignees = request.Assignees;
+        task.AssigneeIds = validatedAssigneeIds;
         task.DueDate = request.DueDate;
         task.Priority = request.Priority;
         task.Status = request.Status;
         task.UpdatedAt = DateTime.UtcNow;
 
         await _taskDatabase.UpdateAsync(taskId, task);
+        Console.WriteLine($"✅ KANBAN: Обновлена задача {taskId} с исполнителями: {string.Join(", ", validatedAssigneeIds)}");
 
-        return MapTaskToResponse(task);
+        return await MapTaskToResponseAsync(task);
     }
 
     public async Task<bool> DeleteTaskAsync(string taskId, string userId)
@@ -331,7 +343,7 @@ public class KanbanService : IKanbanService
 
         Console.WriteLine($"✅ API: Задача {taskId} успешно перемещена в колонку {request.NewColumnId}");
 
-        return MapTaskToResponse(task);
+        return await MapTaskToResponseAsync(task);
     }
 
     // Вспомогательные методы
@@ -419,5 +431,104 @@ public class KanbanService : IKanbanService
             CreatedAt = task.CreatedAt,
             UpdatedAt = task.UpdatedAt
         };
+    }
+
+    private async Task<List<string>> ValidateAssigneesAsync(List<string> assigneeIds, string projectId)
+    {
+        var validatedAssigneeIds = new List<string>();
+        var project = await _projectDatabase.GetByIdAsync(projectId);
+
+        if (project == null)
+        {
+            Console.WriteLine($"❌ KANBAN: Проект {projectId} не найден для валидации исполнителей");
+            return validatedAssigneeIds;
+        }
+
+        Console.WriteLine($"🔍 KANBAN: Валидация {assigneeIds.Count} исполнителей для проекта {projectId}");
+
+        foreach (var assigneeId in assigneeIds)
+        {
+            var user = await _userDatabase.GetByIdAsync(assigneeId);
+            if (user == null)
+            {
+                Console.WriteLine($"❌ KANBAN: Пользователь {assigneeId} не найден, пропускаем");
+                continue;
+            }
+
+            // Проверяем доступ к проекту через организацию
+            var userOrganizations = await _userOrganizationDatabase.FindAsync(
+                uo => uo.OrganizationId == project.OrganizationId && uo.UserId == assigneeId && uo.IsActive);
+            
+            if (userOrganizations.Any())
+            {
+                validatedAssigneeIds.Add(assigneeId);
+                Console.WriteLine($"✅ KANBAN: Пользователь {user.Username} ({assigneeId}) добавлен к исполнителям");
+            }
+            else
+            {
+                Console.WriteLine($"❌ KANBAN: Пользователь {user.Username} ({assigneeId}) не является членом организации {project.OrganizationId}");
+            }
+        }
+
+        Console.WriteLine($"✅ KANBAN: Валидировано {validatedAssigneeIds.Count} из {assigneeIds.Count} исполнителей");
+        return validatedAssigneeIds;
+    }
+
+    private async Task<TaskResponse> MapTaskToResponseAsync(KanbanTask task)
+    {
+        // Мигрируем старые данные если необходимо
+        await MigrateLegacyTaskData(task);
+        
+        // Базовое маппинг
+        var response = MapTaskToResponse(task);
+
+        // Заполняем информацию об исполнителях
+        if (task.AssigneeIds.Any())
+        {
+            var assignees = await _userDatabase.FindAsync(u => task.AssigneeIds.Contains(u.Id));
+            var assigneesList = assignees.ToList();
+            
+            // Заполняем Assignees для UI совместимости (имена)
+            response.Assignees = assigneesList.Select(u => u.Username).ToList();
+            
+            // Заполняем AssigneeDetails для подробной информации
+            if (response.AssigneeDetails == null)
+                response.AssigneeDetails = new List<TaskAssigneeInfo>();
+            
+            foreach (var assignee in assigneesList)
+            {
+                response.AssigneeDetails.Add(new TaskAssigneeInfo
+                {
+                    UserId = assignee.Id,
+                    Username = assignee.Username,
+                    Email = assignee.Email
+                });
+            }
+        }
+
+        return response;
+    }
+
+    /// <summary>
+    /// Мигрирует старые данные assignees в AssigneeIds для обратной совместимости
+    /// </summary>
+    private async Task MigrateLegacyTaskData(KanbanTask task)
+    {
+        // Если есть старые данные assignees и нет новых AssigneeIds
+        if (task.LegacyAssignees != null && task.LegacyAssignees.Any() && !task.AssigneeIds.Any())
+        {
+            Console.WriteLine($"🔄 API: Мигрирую данные assignees для задачи {task.Id}");
+            
+            // Переносим данные из assignees в AssigneeIds
+            task.AssigneeIds = new List<string>(task.LegacyAssignees);
+            
+            // Очищаем старое поле
+            task.LegacyAssignees = null;
+            
+            // Сохраняем в базу данных
+            await _taskDatabase.UpdateAsync(task.Id, task);
+            
+            Console.WriteLine($"✅ API: Данные мигрированы для задачи {task.Id}: {task.AssigneeIds.Count} исполнителей");
+        }
     }
 } 

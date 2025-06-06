@@ -26,6 +26,9 @@ builder.Services.AddScoped<IApiService, ApiService>();
 // Регистрируем сервис для работы с организациями
 builder.Services.AddScoped<OrganizationService>();
 
+// Регистрируем сервис для работы с приглашениями организаций
+builder.Services.AddScoped<OrganizationInvitationService>();
+
 // Регистрируем сервис для всплывающих сообщений
 builder.Services.AddScoped<IToastService, ToastService>();
 

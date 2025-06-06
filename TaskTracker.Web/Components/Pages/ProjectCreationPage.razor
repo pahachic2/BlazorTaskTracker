@@ -1,6 +1,7 @@
 @page "/projects"
 @using TaskTracker.Models
 @using TaskTracker.Models.DTOs
+@using TaskTracker.Web.Components.UI
 @inject NavigationManager NavigationManager
 @inject IApiService ApiService
 @inject OrganizationService OrganizationService
@@ -18,6 +19,7 @@
             OnProjectSelected="HandleProjectSelected"
             OnCreateProject="HandleCreateProject"
             OnCreateOrganization="HandleCreateOrganization"
+            OnManageMembers="HandleManageMembers"
             OnCloseMobile="HandleCloseMobileMenu"
             OnLogout="HandleLogout" />
     </div>
@@ -61,22 +63,48 @@
                 OnSearchChanged="HandleSearch"
                 OnLogoutClick="HandleLogout" />
 
-            <!-- Контент страницы с горизонтальной прокруткой -->
-            <div class="flex-1 overflow-hidden">
-                <div class="h-full overflow-x-auto overflow-y-hidden" style="max-width: 100vw;">
-                    <div class="flex space-x-6 p-6 h-full" style="width: max-content; min-width: 100%;">
-                        <!-- Используем компонент KanbanBoard -->
-                        <KanbanBoard @ref="kanbanBoardRef"
-                            Columns="kanbanColumns"
-                            OnTaskClick="HandleTaskClick"
-                            OnAddTaskToColumn="HandleAddTaskToColumn"
-                            OnAddColumn="HandleAddColumn"
-                            OnTaskMoved="HandleTaskMoved"
-                            OnTaskDelete="HandleTaskDelete"
-                            OnColumnDelete="HandleColumnDelete" />
+            <!-- Контент страницы -->
+            @if (showMembersPanel && !string.IsNullOrEmpty(selectedOrganizationIdForMembers))
+            {
+                <!-- Панель управления участниками -->
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div class="max-w-6xl mx-auto">
+                        <!-- Кнопка "Назад к проекту" -->
+                        <div class="mb-6">
+                            <button @onclick="HandleBackToProject"
+                                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                </svg>
+                                Назад к проекту
+                            </button>
+                        </div>
+                        
+                        <!-- Компонент управления участниками -->
+                        <OrganizationMembersPanel OrganizationId="@selectedOrganizationIdForMembers"
+                                                  OnInvitationSent="HandleInvitationSent" />
                     </div>
                 </div>
-            </div>
+            }
+            else
+            {
+                <!-- Контент страницы с горизонтальной прокруткой -->
+                <div class="flex-1 overflow-hidden">
+                    <div class="h-full overflow-x-auto overflow-y-hidden" style="max-width: 100vw;">
+                        <div class="flex space-x-6 p-6 h-full" style="width: max-content; min-width: 100%;">
+                            <!-- Используем компонент KanbanBoard -->
+                            <KanbanBoard @ref="kanbanBoardRef"
+                                Columns="kanbanColumns"
+                                OnTaskClick="HandleTaskClick"
+                                OnAddTaskToColumn="HandleAddTaskToColumn"
+                                OnAddColumn="HandleAddColumn"
+                                OnTaskMoved="HandleTaskMoved"
+                                OnTaskDelete="HandleTaskDelete"
+                                OnColumnDelete="HandleColumnDelete" />
+                        </div>
+                    </div>
+                </div>
+            }
         }
         else if (!availableOrganizations.Any())
         {
@@ -175,6 +203,10 @@
     private bool isCreateColumnModalVisible = false;
     private bool isDeleteTaskModalVisible = false;
     private bool isDeleteColumnModalVisible = false;
+
+    // Состояние панели участников
+    private bool showMembersPanel = false;
+    private string selectedOrganizationIdForMembers = "";
 
     // Мобильное меню
     private bool isMobileMenuOpen = false;
@@ -557,7 +589,35 @@
         isCreateProjectModalVisible = true;
     }
 
-    // Обработчики для мобильного меню
+    // Обработчик для управления участниками организации
+    private void HandleManageMembers(string organizationId)
+    {
+        Console.WriteLine($"👥 Открываем панель управления участниками для организации: {organizationId}");
+        selectedOrganizationIdForMembers = organizationId;
+        showMembersPanel = true;
+        StateHasChanged();
+    }
+
+    // Обработчик для возврата к проекту
+    private void HandleBackToProject()
+    {
+        Console.WriteLine("🔙 Возвращаемся к проекту");
+        showMembersPanel = false;
+        selectedOrganizationIdForMembers = "";
+        StateHasChanged();
+    }
+
+    // Обработчик отправки приглашения
+    private async Task HandleInvitationSent(InvitationResponse invitation)
+    {
+        Console.WriteLine($"📧 Приглашение отправлено: {invitation.Email}");
+        // Можно добавить дополнительную логику, если необходимо
+        // Например, обновление счетчика участников в sidebar
+        await LoadOrganizationsAsync();
+        StateHasChanged();
+    }
+
+    // Мобильное меню
     private void HandleToggleMobileMenu()
     {
         isMobileMenuOpen = !isMobileMenuOpen;

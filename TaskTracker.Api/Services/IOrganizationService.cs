@@ -13,4 +13,11 @@ public interface IOrganizationService
     Task<bool> AddMemberToOrganizationAsync(string organizationId, string userId, string memberUserId);
     Task<bool> RemoveMemberFromOrganizationAsync(string organizationId, string userId, string memberUserId);
     Task<List<OrganizationResponse>> GetAllOrganizationsAsync(); // Для админа
+    Task<InvitationResponse> InviteUserAsync(string organizationId, InviteUserRequest request, string userId);
+    Task<List<InvitationResponse>> GetOrganizationInvitationsAsync(string organizationId, string userId);
+    Task<List<OrganizationMemberResponse>> GetOrganizationMembersAsync(string organizationId, string userId);
+    Task<bool> RevokeInvitationAsync(string invitationId, string userId);
+    Task<AcceptInvitationResponse> AcceptInvitationAsync(AcceptInvitationRequest request);
+    Task<InvitationInfoResponse> GetInvitationInfoAsync(string token);
+    Task<bool> DeclineInvitationAsync(DeclineInvitationRequest request);
 } 

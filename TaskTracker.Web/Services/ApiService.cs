@@ -248,6 +248,70 @@ public class ApiService : IApiService
         return result;
     }
 
+    // НОВЫЕ МЕТОДЫ ДЛЯ СИСТЕМЫ ПРИГЛАШЕНИЙ
+
+    // Участники организации
+    public async Task<List<OrganizationMemberResponse>> GetOrganizationMembersAsync(string organizationId)
+    {
+        await SetAuthorizationHeaderAsync();
+        return await GetAsync<List<OrganizationMemberResponse>>($"/api/organizations/{organizationId}/members") ?? new List<OrganizationMemberResponse>();
+    }
+
+    // Приглашения (авторизованные методы)
+    public async Task<InvitationResponse?> InviteUserAsync(string organizationId, InviteUserRequest request)
+    {
+        await SetAuthorizationHeaderAsync();
+        var response = await PostAsync<InviteUserRequest, InvitationResponse>($"/api/organizations/{organizationId}/invitations", request);
+        if (response != null)
+        {
+            _toastService.ShowSuccess("Приглашение отправлено!", $"Приглашение отправлено на {request.Email}");
+        }
+        return response;
+    }
+
+    public async Task<List<InvitationResponse>> GetOrganizationInvitationsAsync(string organizationId)
+    {
+        await SetAuthorizationHeaderAsync();
+        return await GetAsync<List<InvitationResponse>>($"/api/organizations/{organizationId}/invitations") ?? new List<InvitationResponse>();
+    }
+
+    public async Task<bool> RevokeInvitationAsync(string invitationId)
+    {
+        await SetAuthorizationHeaderAsync();
+        var success = await DeleteAsync($"/api/organizations/invitations/{invitationId}");
+        if (success)
+        {
+            _toastService.ShowSuccess("Приглашение отозвано!", "Приглашение успешно отменено");
+        }
+        return success;
+    }
+
+    // Публичные методы для обработки приглашений
+    public async Task<InvitationInfoResponse?> GetInvitationInfoAsync(string token)
+    {
+        return await GetAsync<InvitationInfoResponse>($"/api/invitations/{token}");
+    }
+
+    public async Task<AcceptInvitationResponse?> AcceptInvitationAsync(AcceptInvitationRequest request)
+    {
+        var response = await PostAsync<AcceptInvitationRequest, AcceptInvitationResponse>($"/api/invitations/{request.Token}/accept", request);
+        if (response != null)
+        {
+            _toastService.ShowSuccess("Приглашение принято!", $"Добро пожаловать в организацию {response.Organization?.Name ?? "организацию"}!");
+        }
+        return response;
+    }
+
+    public async Task<bool> DeclineInvitationAsync(DeclineInvitationRequest request)
+    {
+        var success = await PostAsync<DeclineInvitationRequest, object>($"/api/invitations/{request.Token}/decline", request) != null;
+        if (success)
+        {
+            _toastService.ShowInfo("Приглашение отклонено", "Вы отклонили приглашение в организацию");
+        }
+        return success;
+    }
+
     // Вспомогательные методы
     private async Task<T?> GetAsync<T>(string endpoint)
     {

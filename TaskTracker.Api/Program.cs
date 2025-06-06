@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using TaskTracker.Models.DTOs;
 using TaskTracker.Api.Endpoints;
+using TaskTracker.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,9 @@ builder.Services.Configure<DatabaseSettings>(
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("JWT"));
 
+// Конфигурация Email настроек
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
 // Регистрируем сервисы
 builder.Services.AddScoped(typeof(IDatabaseService<>), typeof(MongoDatabaseService<>));
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -24,6 +28,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IKanbanService, KanbanService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<DataSeederService>();
 
 // Настраиваем аутентификацию

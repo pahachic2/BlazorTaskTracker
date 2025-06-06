@@ -15,7 +15,13 @@ public class CreateTaskRequest
     public string? Description { get; set; }
     
     public List<string> Tags { get; set; } = new();
+    
+    // Новое поле - ID пользователей из организации
+    public List<string> AssigneeIds { get; set; } = new();
+    
+    // Старое поле для обратной совместимости 
     public List<string> Assignees { get; set; } = new();
+    
     public DateTime? DueDate { get; set; }
     
     [Required(ErrorMessage = "ID колонки обязательно")]
@@ -40,7 +46,13 @@ public class UpdateTaskRequest
     public string? Description { get; set; }
     
     public List<string> Tags { get; set; } = new();
+    
+    // Новое поле - ID пользователей из организации
+    public List<string> AssigneeIds { get; set; } = new();
+    
+    // Старое поле для обратной совместимости
     public List<string> Assignees { get; set; } = new();
+    
     public DateTime? DueDate { get; set; }
     public TaskPriority Priority { get; set; } = TaskPriority.Medium;
     public TaskStatus Status { get; set; } = TaskStatus.ToDo;
@@ -66,7 +78,16 @@ public class TaskResponse
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public List<string> Tags { get; set; } = new();
+    
+    // ID назначенных пользователей
+    public List<string> AssigneeIds { get; set; } = new();
+    
+    // Имена назначенных пользователей для обратной совместимости и UI
     public List<string> Assignees { get; set; } = new();
+    
+    // Детальная информация об исполнителях
+    public List<TaskAssigneeInfo> AssigneeDetails { get; set; } = new();
+    
     public DateTime? DueDate { get; set; }
     public string ColumnId { get; set; } = string.Empty;
     public string ProjectId { get; set; } = string.Empty;
@@ -76,6 +97,16 @@ public class TaskResponse
     public TaskStatus Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Информация об исполнителе задачи
+/// </summary>
+public class TaskAssigneeInfo
+{
+    public string UserId { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
 }
 
 /// <summary>

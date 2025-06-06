@@ -51,11 +51,22 @@ public class KanbanTask
     [BsonElement("tags")]
     public List<string> Tags { get; set; } = new();
 
+    [BsonElement("assigneeIds")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public List<string> AssigneeIds { get; set; } = new();
+
+    // Поле для обратной совместимости со старыми данными в MongoDB
     [BsonElement("assignees")]
-    public List<string> Assignees { get; set; } = new();
+    [BsonIgnoreIfNull]
+    [Obsolete("Используется только для обратной совместимости. Используйте AssigneeIds")]
+    public List<string>? LegacyAssignees { get; set; }
 
     [BsonElement("dueDate")]
     public DateTime? DueDate { get; set; }
+
+    // Поле для обратной совместимости и UI (не хранится в MongoDB)
+    [BsonIgnore]
+    public List<string> Assignees { get; set; } = new();
 
     [BsonElement("columnId")]
     [BsonRepresentation(BsonType.ObjectId)]

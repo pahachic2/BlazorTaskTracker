@@ -116,6 +116,15 @@
                                         <span>Создать проект</span>
                                     </button>
 
+                                    <!-- Кнопка управления участниками -->
+                                    <button @onclick="@(() => HandleManageMembers(organization.Id))"
+                                            class="w-full flex items-center space-x-2 p-2 text-left text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-md transition-colors text-sm">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-2.25" />
+                                        </svg>
+                                        <span>Участники (@organization.Members.Count)</span>
+                                    </button>
+
                                     <!-- Список проектов -->
                                     @if (GetOrganizationProjects(organization.Id).Any())
                                     {
@@ -192,6 +201,7 @@
     [Parameter] public EventCallback<Project> OnProjectSelected { get; set; }
     [Parameter] public EventCallback<string> OnCreateProject { get; set; } // Теперь передаём ID организации
     [Parameter] public EventCallback OnCreateOrganization { get; set; }
+    [Parameter] public EventCallback<string> OnManageMembers { get; set; } // Управление участниками организации
     [Parameter] public EventCallback OnLogout { get; set; }
     [Parameter] public EventCallback OnCloseMobile { get; set; }
 
@@ -248,6 +258,15 @@
         await OnCreateOrganization.InvokeAsync();
         
         // Закрываем мобильное меню после открытия модального окна
+        await OnCloseMobile.InvokeAsync();
+    }
+
+    private async Task HandleManageMembers(string organizationId)
+    {
+        Console.WriteLine($"👥 Управление участниками организации: {organizationId}");
+        await OnManageMembers.InvokeAsync(organizationId);
+        
+        // Закрываем мобильное меню после открытия панели участников
         await OnCloseMobile.InvokeAsync();
     }
 

@@ -35,4 +35,19 @@ public interface IApiService
     Task<TaskResponse?> UpdateTaskAsync(string taskId, UpdateTaskRequest request);
     Task<bool> DeleteTaskAsync(string taskId);
     Task<TaskResponse?> MoveTaskAsync(string taskId, MoveTaskRequest request);
+
+    // НОВЫЕ МЕТОДЫ ДЛЯ СИСТЕМЫ ПРИГЛАШЕНИЙ
+    
+    // Участники организации
+    Task<List<OrganizationMemberResponse>> GetOrganizationMembersAsync(string organizationId);
+
+    // Приглашения (авторизованные методы)
+    Task<InvitationResponse?> InviteUserAsync(string organizationId, InviteUserRequest request);
+    Task<List<InvitationResponse>> GetOrganizationInvitationsAsync(string organizationId);
+    Task<bool> RevokeInvitationAsync(string invitationId);
+
+    // Публичные методы для обработки приглашений
+    Task<InvitationInfoResponse?> GetInvitationInfoAsync(string token);
+    Task<AcceptInvitationResponse?> AcceptInvitationAsync(AcceptInvitationRequest request);
+    Task<bool> DeclineInvitationAsync(DeclineInvitationRequest request);
 } 

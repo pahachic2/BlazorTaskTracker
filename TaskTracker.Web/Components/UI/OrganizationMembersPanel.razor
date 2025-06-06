@@ -1,0 +1,372 @@
+@using TaskTracker.Models
+@using TaskTracker.Models.DTOs
+@inject OrganizationInvitationService InvitationService
+
+@* Панель управления участниками организации *@
+
+<div class="space-y-6">
+    <!-- Заголовок и кнопка приглашения -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900">Участники организации</h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Управляйте участниками и отправляйте приглашения
+            </p>
+        </div>
+        <button @onclick="ShowInviteModal"
+                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Пригласить пользователя
+        </button>
+    </div>
+
+    <!-- Поиск участников -->
+    <div class="max-w-md">
+        <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <input type="text" 
+                   @bind="searchQuery" 
+                   @oninput="HandleSearch"
+                   class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="Поиск участников..." />
+        </div>
+    </div>
+
+    <!-- Табы -->
+    <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8">
+            <button @onclick="@(() => activeTab = "members")"
+                    class="@GetTabClasses("members") whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                Участники (@filteredMembers.Count)
+            </button>
+            <button @onclick="@(() => activeTab = "invitations")"
+                    class="@GetTabClasses("invitations") whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
+                Приглашения (@filteredInvitations.Count)
+            </button>
+        </nav>
+    </div>
+
+    <!-- Контент табов -->
+    @if (isLoading)
+    {
+        <div class="flex items-center justify-center py-12">
+            <div class="flex items-center space-x-2">
+                <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-gray-600">Загрузка...</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        @if (activeTab == "members")
+        {
+            <!-- Список участников -->
+            @if (filteredMembers.Any())
+            {
+                <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                    <ul class="divide-y divide-gray-200">
+                        @foreach (var member in filteredMembers)
+                        {
+                            <li class="px-6 py-4 hover:bg-gray-50">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <!-- Аватар -->
+                                        <div class="flex-shrink-0 h-10 w-10">
+                                            <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
+                                                <span class="text-white font-medium text-sm">
+                                                    @(member.Username.Length > 0 ? member.Username[0].ToString().ToUpper() : "?")
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Информация о пользователе -->
+                                        <div class="ml-4">
+                                            <div class="flex items-center space-x-2">
+                                                <p class="text-sm font-medium text-gray-900">@member.Username</p>
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @GetRoleCssClass(member.Role)">
+                                                    @InvitationService.GetRoleDisplayName(member.Role)
+                                                </span>
+                                            </div>
+                                            <p class="text-sm text-gray-500">@member.Email</p>
+                                            <p class="text-xs text-gray-400">
+                                                Присоединился @member.JoinedAt.ToString("dd.MM.yyyy")
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Действия -->
+                                    <div class="flex items-center space-x-2">
+                                        @if (member.Role != OrganizationRole.Owner)
+                                        {
+                                            <button class="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"
+                                                    title="Удалить из организации">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <!-- Пустое состояние участников -->
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Участники не найдены</h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        @if (string.IsNullOrWhiteSpace(searchQuery))
+                        {
+                            <span>В организации пока нет других участников.</span>
+                        }
+                        else
+                        {
+                            <span>Не найдено участников по запросу "@searchQuery".</span>
+                        }
+                    </p>
+                </div>
+            }
+        }
+        else
+        {
+            <!-- Список приглашений -->
+            @if (filteredInvitations.Any())
+            {
+                <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                    <ul class="divide-y divide-gray-200">
+                        @foreach (var invitation in filteredInvitations)
+                        {
+                            <li class="px-6 py-4 hover:bg-gray-50">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <!-- Иконка приглашения -->
+                                        <div class="flex-shrink-0 h-10 w-10">
+                                            <div class="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                                                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Информация о приглашении -->
+                                        <div class="ml-4">
+                                            <div class="flex items-center space-x-2">
+                                                <p class="text-sm font-medium text-gray-900">@invitation.Email</p>
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @GetRoleCssClass(invitation.Role)">
+                                                    @InvitationService.GetRoleDisplayName(invitation.Role)
+                                                </span>
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @InvitationService.GetInvitationStatusCssClass(invitation.Status)">
+                                                    @InvitationService.GetInvitationStatusDisplayName(invitation.Status)
+                                                </span>
+                                            </div>
+                                            <p class="text-sm text-gray-500">
+                                                Приглашён @invitation.InvitedByName
+                                            </p>
+                                            <p class="text-xs text-gray-400">
+                                                @invitation.CreatedAt.ToString("dd.MM.yyyy HH:mm")
+                                                @if (invitation.Status == InvitationStatus.Pending)
+                                                {
+                                                    <span> • Истекает @invitation.ExpiresAt.ToString("dd.MM.yyyy")</span>
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Действия -->
+                                    <div class="flex items-center space-x-2">
+                                        @if (invitation.Status == InvitationStatus.Pending)
+                                        {
+                                            <button @onclick="@(() => RevokeInvitation(invitation.Id))"
+                                                    class="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"
+                                                    title="Отозвать приглашение">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <!-- Пустое состояние приглашений -->
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Приглашения не найдены</h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        @if (string.IsNullOrWhiteSpace(searchQuery))
+                        {
+                            <span>Пока не отправлено ни одного приглашения.</span>
+                        }
+                        else
+                        {
+                            <span>Не найдено приглашений по запросу "@searchQuery".</span>
+                        }
+                    </p>
+                    <div class="mt-6">
+                        <button @onclick="ShowInviteModal"
+                                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                            Отправить первое приглашение
+                        </button>
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+<!-- Модальное окно приглашения -->
+<InviteUserModal IsVisible="isInviteModalVisible"
+                 OrganizationId="@OrganizationId"
+                 OnClose="HideInviteModal"
+                 OnInvitationSent="HandleInvitationSent" />
+
+@code {
+    [Parameter] public string OrganizationId { get; set; } = "";
+    [Parameter] public EventCallback<InvitationResponse> OnInvitationSent { get; set; }
+
+    private List<OrganizationMemberResponse> members = new();
+    private List<InvitationResponse> invitations = new();
+    private List<OrganizationMemberResponse> filteredMembers = new();
+    private List<InvitationResponse> filteredInvitations = new();
+
+    private string activeTab = "members";
+    private string searchQuery = "";
+    private bool isLoading = true;
+    private bool isInviteModalVisible = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(OrganizationId))
+        {
+            await LoadDataAsync();
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (string.IsNullOrWhiteSpace(OrganizationId)) return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var membersTask = InvitationService.GetOrganizationMembersAsync(OrganizationId);
+            var invitationsTask = InvitationService.GetOrganizationInvitationsAsync(OrganizationId);
+
+            await Task.WhenAll(membersTask, invitationsTask);
+
+            members = await membersTask;
+            invitations = await invitationsTask;
+
+            ApplyFilter();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleSearch(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? "";
+        ApplyFilter();
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            filteredMembers = members;
+            filteredInvitations = invitations;
+        }
+        else
+        {
+            var query = searchQuery.ToLowerInvariant();
+            
+            filteredMembers = members.Where(m => 
+                m.Username.ToLowerInvariant().Contains(query) ||
+                m.Email.ToLowerInvariant().Contains(query)
+            ).ToList();
+
+            filteredInvitations = invitations.Where(i => 
+                i.Email.ToLowerInvariant().Contains(query)
+            ).ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private void ShowInviteModal()
+    {
+        isInviteModalVisible = true;
+    }
+
+    private void HideInviteModal()
+    {
+        isInviteModalVisible = false;
+    }
+
+    private async Task HandleInvitationSent(InvitationResponse invitation)
+    {
+        await OnInvitationSent.InvokeAsync(invitation);
+        await LoadDataAsync(); // Перезагружаем данные
+    }
+
+    private async Task RevokeInvitation(string invitationId)
+    {
+        var success = await InvitationService.RevokeInvitationAsync(invitationId, OrganizationId);
+        if (success)
+        {
+            await LoadDataAsync(); // Перезагружаем данные
+        }
+    }
+
+    private string GetTabClasses(string tabName)
+    {
+        if (activeTab == tabName)
+        {
+            return "border-blue-500 text-blue-600";
+        }
+        return "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+    }
+
+    private string GetRoleCssClass(OrganizationRole role)
+    {
+        return role switch
+        {
+            OrganizationRole.Owner => "bg-purple-100 text-purple-800",
+            OrganizationRole.Admin => "bg-blue-100 text-blue-800",
+            OrganizationRole.Member => "bg-green-100 text-green-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+} 
