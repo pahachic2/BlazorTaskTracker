@@ -101,6 +101,27 @@ public static class OrganizationEndpoints
             .WithName("DeclineInvitation")
             .WithSummary("Отклонить приглашение в организацию")
             .WithOpenApi();
+
+        // Тестирование email конфигурации (только для администраторов)
+        group.MapPost("/test-email", async (
+            IEmailService emailService,
+            HttpContext context) =>
+        {
+            try
+            {
+                var result = await emailService.TestEmailConfigurationAsync();
+                return result 
+                    ? Results.Ok(new { message = "Email конфигурация работает корректно!" })
+                    : Results.BadRequest(new { message = "Ошибка в email конфигурации" });
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(new { message = $"Ошибка тестирования: {ex.Message}" });
+            }
+        })
+        .WithName("TestEmailConfiguration")
+        .WithOpenApi()
+        .RequireAuthorization();
     }
 
     // СУЩЕСТВУЮЩИЕ МЕТОДЫ
