@@ -100,7 +100,8 @@
                                 OnAddColumn="HandleAddColumn"
                                 OnTaskMoved="HandleTaskMoved"
                                 OnTaskDelete="HandleTaskDelete"
-                                OnColumnDelete="HandleColumnDelete" />
+                                OnColumnDelete="HandleColumnDelete"
+                                OnTaskUpdate="HandleTaskUpdate" />
                         </div>
                     </div>
                 </div>
@@ -680,6 +681,8 @@
         }
     }
 
+
+
     // Обработчик для удаления задачи
     private void HandleTaskDelete(KanbanTask task)
     {
@@ -787,6 +790,50 @@
             columnToDelete = null;
             StateHasChanged(); // Принудительно обновляем UI
             Console.WriteLine("🚪 Модальное окно удаления закрыто");
+        }
+    }
+
+    // Обработчик для обновления задач (inline editing)
+    private async Task HandleTaskUpdate(KanbanTask task)
+    {
+        if (task == null)
+        {
+            Console.WriteLine("❌ Получена пустая задача для обновления");
+            return;
+        }
+
+        try
+        {
+            Console.WriteLine($"💾 Обновляем задачу {task.Id}: Title='{task.Title}', DueDate={task.DueDate}");
+
+            var updateRequest = new UpdateTaskRequest
+            {
+                Title = task.Title,
+                Description = task.Description,
+                Tags = task.Tags ?? new List<string>(),
+                AssigneeIds = task.AssigneeIds ?? new List<string>(),
+                DueDate = task.DueDate,
+                Priority = task.Priority,
+                Status = task.Status
+            };
+
+            await ApiService.UpdateTaskAsync(task.Id, updateRequest);
+            Console.WriteLine($"✅ Задача {task.Id} успешно обновлена");
+
+            // Перезагружаем данные для обновления интерфейса
+            await LoadProjectColumnsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка при обновлении задачи {task.Id}: {ex.Message}");
+            
+            // Показываем уведомление об ошибке пользователю
+            await JSRuntime.InvokeVoidAsync("alert", $"Ошибка при сохранении изменений: {ex.Message}");
+            
+            // Перезагружаем данные чтобы вернуть оригинальные значения
+            await LoadProjectColumnsAsync();
+            
+            throw; // Перебрасываем исключение для обработки в KanbanBoard
         }
     }
 }

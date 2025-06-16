@@ -514,6 +514,47 @@ public class KanbanService : IKanbanService
     /// </summary>
     private async Task MigrateLegacyTaskData(KanbanTask task)
     {
+        bool needsUpdate = false;
+        
+        // Проверяем и очищаем некорректные данные в AssigneeIds
+        if (task.AssigneeIds.Any())
+        {
+            var validAssigneeIds = new List<string>();
+            foreach (var assigneeId in task.AssigneeIds)
+            {
+                // Проверяем, что это валидный ObjectId (24 символа hex)
+                if (MongoDB.Bson.ObjectId.TryParse(assigneeId, out _))
+                {
+                    validAssigneeIds.Add(assigneeId);
+                }
+                else
+                {
+                    Console.WriteLine($"⚠️ API: Некорректный AssigneeId '{assigneeId}' в задаче {task.Id}, удаляю");
+                    needsUpdate = true;
+                }
+            }
+            
+            if (needsUpdate)
+            {
+                task.AssigneeIds = validAssigneeIds;
+                // Если у нас есть некорректные ID, пробуем восстановить из Assignees
+                if (task.Assignees.Any())
+                {
+                    Console.WriteLine($"🔄 API: Пытаюсь восстановить исполнителей из имен пользователей для задачи {task.Id}");
+                    foreach (var assigneeName in task.Assignees)
+                    {
+                        var users = await _userDatabase.FindAsync(u => u.Username == assigneeName);
+                        var user = users.FirstOrDefault();
+                        if (user != null && !task.AssigneeIds.Contains(user.Id))
+                        {
+                            task.AssigneeIds.Add(user.Id);
+                            Console.WriteLine($"✅ API: Восстановлен исполнитель {assigneeName} -> {user.Id}");
+                        }
+                    }
+                }
+            }
+        }
+        
         // Если есть старые данные assignees и нет новых AssigneeIds
         if (task.LegacyAssignees != null && task.LegacyAssignees.Any() && !task.AssigneeIds.Any())
         {
@@ -524,11 +565,16 @@ public class KanbanService : IKanbanService
             
             // Очищаем старое поле
             task.LegacyAssignees = null;
-            
-            // Сохраняем в базу данных
-            await _taskDatabase.UpdateAsync(task.Id, task);
+            needsUpdate = true;
             
             Console.WriteLine($"✅ API: Данные мигрированы для задачи {task.Id}: {task.AssigneeIds.Count} исполнителей");
+        }
+        
+        // Сохраняем в базу данных если были изменения
+        if (needsUpdate)
+        {
+            await _taskDatabase.UpdateAsync(task.Id, task);
+            Console.WriteLine($"💾 API: Обновлены данные задачи {task.Id}");
         }
     }
 } 

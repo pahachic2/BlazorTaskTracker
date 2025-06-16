@@ -31,7 +31,7 @@
                 @foreach (var task in column.Tasks)
                 {
                     <div id="task-@task.Id" data-task-id="@task.Id" data-column-id="@column.Id"
-                        class="kanban-task bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow group relative"
+                        class="kanban-task bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow group relative @(IsTaskEditing(task.Id) ? "ring-2 ring-blue-500 bg-blue-50" : "")"
                         @onmouseenter="@(() => HandleTaskMouseEnter(task))"
                         @onclick:preventDefault="false" @onclick:stopPropagation="false">
 
@@ -60,9 +60,42 @@
                             }
 
                             <!-- Заголовок задачи -->
-                            <h4 class="font-medium text-gray-900 text-sm mb-2 line-clamp-2">
-                                @task.Title
-                            </h4>
+                            @if (IsTaskEditing(task.Id))
+                            {
+                                <!-- Режим редактирования заголовка -->
+                                <div class="mb-2 relative inline-edit-enter">
+                                    <input type="text" 
+                                           @bind="editingTaskTitles[task.Id]" 
+                                           @onkeypress="@(async (e) => await HandleTitleKeyPress(e, task))"
+                                           @onblur="@(async () => await SaveTaskChanges(task))"
+                                           @onfocus="@((e) => SelectInputText(e))"
+                                           disabled="@IsTaskSaving(task.Id)"
+                                           class="w-full px-2 py-1 text-sm font-medium text-gray-900 bg-white border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent @(IsTaskSaving(task.Id) ? "opacity-50 cursor-not-allowed" : "")"
+                                           placeholder="Введите название задачи..."
+                                           maxlength="200"
+                                           @onclick:stopPropagation="true" />
+                                    @if (IsTaskSaving(task.Id))
+                                    {
+                                        <!-- Индикатор загрузки -->
+                                        <div class="absolute right-2 top-1/2 transform -translate-y-1/2">
+                                            <svg class="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <!-- Режим просмотра заголовка -->
+                                <h4 class="font-medium text-gray-900 text-sm mb-2 line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors inline-editable" 
+                                   @onclick="@(() => StartEditingTask(task))"
+                                   @onclick:stopPropagation="true"
+                                   title="Нажмите для редактирования">
+                                    @task.Title
+                                </h4>
+                            }
 
                             <!-- Описание задачи -->
                             @if (!string.IsNullOrEmpty(task.Description))
@@ -75,9 +108,41 @@
                             <!-- Нижняя часть карточки -->
                             <div class="flex items-center justify-between">
                                 <!-- Дата выполнения -->
-                                @if (task.DueDate.HasValue)
+                                @if (IsTaskEditing(task.Id))
                                 {
-                                    <div class="flex items-center space-x-1">
+                                    <!-- Режим редактирования даты -->
+                                    <div class="flex items-center space-x-1 inline-edit-enter">
+                                        <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                            </path>
+                                        </svg>
+                                        <input type="date" 
+                                               value="@GetEditingTaskDueDateString(task.Id)"
+                                               @onchange="@((ChangeEventArgs e) => UpdateEditingTaskDueDate(task.Id, e.Value?.ToString()))"
+                                               @onkeypress="@(async (e) => await HandleDateKeyPress(e, task))"
+                                               @onblur="@(async () => await SaveTaskChanges(task))"
+                                               disabled="@IsTaskSaving(task.Id)"
+                                               class="px-1 py-0.5 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent bg-white @(IsTaskSaving(task.Id) ? "opacity-50 cursor-not-allowed" : "")"
+                                               @onclick:stopPropagation="true" />
+                                        <button @onclick="@(async () => await ClearTaskDate(task))" 
+                                                @onclick:stopPropagation="true"
+                                                disabled="@IsTaskSaving(task.Id)"
+                                                class="text-gray-400 hover:text-red-500 transition-colors @(IsTaskSaving(task.Id) ? "opacity-50 cursor-not-allowed" : "")"
+                                                title="Очистить дату">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                }
+                                else if (task.DueDate.HasValue)
+                                {
+                                    <!-- Режим просмотра даты -->
+                                    <div class="flex items-center space-x-1 cursor-pointer hover:text-blue-600 transition-colors inline-editable"
+                                         @onclick="@(() => StartEditingTask(task))"
+                                         @onclick:stopPropagation="true"
+                                         title="Нажмите для редактирования даты">
                                         <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
@@ -86,6 +151,21 @@
                                         <span class="@GetDueDateClasses(task.DueDate.Value) text-xs">
                                             @task.DueDate.Value.ToString("dd MMM")
                                         </span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <!-- Отображение когда даты нет -->
+                                    <div class="flex items-center space-x-1 cursor-pointer hover:text-blue-600 transition-colors opacity-50 inline-editable"
+                                         @onclick="@(() => StartEditingTask(task))"
+                                         @onclick:stopPropagation="true"
+                                         title="Нажмите для добавления даты">
+                                        <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                            </path>
+                                        </svg>
+                                        <span class="text-xs text-gray-400">Добавить дату</span>
                                     </div>
                                 }
 
@@ -150,9 +230,17 @@
     [Parameter] public EventCallback OnAddColumn { get; set; }
     [Parameter] public EventCallback<TaskMovedEventArgs> OnTaskMoved { get; set; }
     [Parameter] public EventCallback<KanbanTask> OnTaskDelete { get; set; }
-    [Parameter] public EventCallback<KanbanColumn> OnColumnDelete { get; set; }
+[Parameter] public EventCallback<KanbanColumn> OnColumnDelete { get; set; }
+[Parameter] public EventCallback<KanbanTask> OnTaskUpdate { get; set; }
 
-    private bool jsInteropDone = false;
+private bool jsInteropDone = false;
+
+// Состояние для inline редактирования
+private Dictionary<string, bool> taskEditingStates = new Dictionary<string, bool>();
+private Dictionary<string, string> editingTaskTitles = new Dictionary<string, string>();
+private Dictionary<string, DateTime?> editingTaskDueDates = new Dictionary<string, DateTime?>();
+private Dictionary<string, bool> taskSavingStates = new Dictionary<string, bool>(); // Индикатор загрузки
+private string? currentEditingTaskId = null; // Только одна задача может редактироваться одновременно
     private DotNetObjectReference<KanbanBoard>? dotNetRef;
     private bool isTaskMoving = false; // Флаг для предотвращения переинициализации во время перемещения
 
@@ -356,6 +444,284 @@ document.head.appendChild(script);
         });
 
         Console.WriteLine($"✅ BLAZOR: Событие drop обработано и передано родителю");
+    }
+
+    // Методы для inline редактирования - проверка состояния
+    private bool IsTaskEditing(string taskId)
+    {
+        return taskEditingStates.ContainsKey(taskId) && taskEditingStates[taskId];
+    }
+
+    private bool IsTaskSaving(string taskId)
+    {
+        return taskSavingStates.ContainsKey(taskId) && taskSavingStates[taskId];
+    }
+
+    // Методы управления редактированием
+    private void StartEditingTask(KanbanTask task)
+    {
+        // Отменяем редактирование другой задачи, если она есть
+        if (currentEditingTaskId != null && currentEditingTaskId != task.Id)
+        {
+            CancelEditingTask(currentEditingTaskId);
+        }
+
+        currentEditingTaskId = task.Id;
+        taskEditingStates[task.Id] = true;
+        
+        // Сохраняем текущие значения для редактирования
+        editingTaskTitles[task.Id] = task.Title ?? "";
+        editingTaskDueDates[task.Id] = task.DueDate;
+        
+        StateHasChanged();
+        
+        // Фокус на поле ввода через небольшую задержку
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(50);
+            await InvokeAsync(async () =>
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("eval", $@"
+                        setTimeout(() => {{
+                            const titleInput = document.querySelector('#task-{task.Id} input[type=""text""]');
+                            if (titleInput) {{
+                                titleInput.focus();
+                                titleInput.select();
+                            }}
+                        }}, 10);
+                    ");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Ошибка фокуса на input: {ex.Message}");
+                }
+            });
+        });
+    }
+
+    private void CancelEditingTask(string taskId)
+    {
+        var task = GetTaskById(taskId);
+        if (task == null) return;
+        
+        // Восстанавливаем исходные значения
+        if (editingTaskTitles.ContainsKey(taskId))
+        {
+            editingTaskTitles[taskId] = task.Title;
+        }
+        
+        if (editingTaskDueDates.ContainsKey(taskId))
+        {
+            editingTaskDueDates[taskId] = task.DueDate;
+        }
+        
+        // Выходим из режима редактирования
+        if (taskEditingStates.ContainsKey(taskId))
+        {
+            taskEditingStates[taskId] = false;
+        }
+        
+        if (currentEditingTaskId == taskId)
+        {
+            currentEditingTaskId = null;
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task SaveTaskChanges(KanbanTask task)
+    {
+        // Предотвращаем множественные сохранения
+        if (IsTaskSaving(task.Id))
+        {
+            Console.WriteLine($"⏳ Задача {task.Id} уже сохраняется, пропускаем...");
+            return;
+        }
+
+        var hasChanges = false;
+        var validationErrors = new List<string>();
+        
+        // Проверяем и валидируем изменения в названии
+        if (editingTaskTitles.ContainsKey(task.Id))
+        {
+            var newTitle = editingTaskTitles[task.Id]?.Trim();
+            
+            // Валидация заголовка
+            if (string.IsNullOrEmpty(newTitle))
+            {
+                validationErrors.Add("Название задачи не может быть пустым");
+            }
+            else if (newTitle.Length > 200)
+            {
+                validationErrors.Add("Название задачи не может быть длиннее 200 символов");
+            }
+            else if (newTitle != task.Title)
+            {
+                task.Title = newTitle;
+                hasChanges = true;
+            }
+        }
+        
+        // Проверяем и валидируем изменения в дате
+        if (editingTaskDueDates.ContainsKey(task.Id))
+        {
+            var newDueDate = editingTaskDueDates[task.Id];
+            
+            // Валидация даты
+            if (newDueDate.HasValue && newDueDate.Value.Date < DateTime.Today)
+            {
+                validationErrors.Add("Дата выполнения не может быть в прошлом");
+            }
+            else if (newDueDate != task.DueDate)
+            {
+                task.DueDate = newDueDate;
+                hasChanges = true;
+            }
+        }
+
+        // Если есть ошибки валидации, показываем их и не сохраняем
+        if (validationErrors.Any())
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Ошибки валидации:\n{string.Join("\n", validationErrors)}");
+            return; // Не выходим из режима редактирования
+        }
+
+        // Сохраняем изменения через родительский компонент
+        if (hasChanges && OnTaskUpdate.HasDelegate)
+        {
+            Console.WriteLine($"💾 Сохраняем изменения для задачи {task.Id}...");
+            
+            // Устанавливаем состояние загрузки
+            taskSavingStates[task.Id] = true;
+            StateHasChanged();
+            
+            try
+            {
+                await OnTaskUpdate.InvokeAsync(task);
+                Console.WriteLine($"✅ Задача {task.Id} успешно сохранена");
+                
+                // Показываем индикатор успеха
+                await ShowSuccessAnimation(task.Id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Ошибка сохранения задачи {task.Id}: {ex.Message}");
+                // Возвращаем оригинальные значения при ошибке
+                var originalTask = GetTaskById(task.Id);
+                if (originalTask != null)
+                {
+                    editingTaskTitles[task.Id] = originalTask.Title;
+                    editingTaskDueDates[task.Id] = originalTask.DueDate;
+                }
+            }
+            finally
+            {
+                // Снимаем состояние загрузки
+                taskSavingStates[task.Id] = false;
+            }
+        }
+        
+        // Выходим из режима редактирования
+        CancelEditingTask(task.Id);
+    }
+
+    private KanbanTask? GetTaskById(string taskId)
+    {
+        foreach (var column in Columns)
+        {
+            var task = column.Tasks.FirstOrDefault(t => t.Id == taskId);
+            if (task != null) return task;
+        }
+        return null;
+    }
+
+    // Обработчики событий для inline редактирования
+    private async Task HandleTitleKeyPress(KeyboardEventArgs e, KanbanTask task)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveTaskChanges(task);
+        }
+        else if (e.Key == "Escape")
+        {
+            CancelEditingTask(task.Id);
+        }
+    }
+
+    private async Task SelectInputText(FocusEventArgs e)
+    {
+        // Выделяем весь текст при фокусе на input
+        await JSRuntime.InvokeVoidAsync("eval", "event.target.select()");
+    }
+
+    private async Task HandleDateKeyPress(KeyboardEventArgs e, KanbanTask task)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveTaskChanges(task);
+        }
+        else if (e.Key == "Escape")
+        {
+            CancelEditingTask(task.Id);
+        }
+    }
+
+    private async Task ClearTaskDate(KanbanTask task)
+    {
+        // Предотвращаем действие если уже сохраняется
+        if (IsTaskSaving(task.Id))
+        {
+            return;
+        }
+        
+        editingTaskDueDates[task.Id] = null;
+        await SaveTaskChanges(task);
+    }
+
+    private string GetEditingTaskDueDateString(string taskId)
+    {
+        if (editingTaskDueDates.ContainsKey(taskId) && editingTaskDueDates[taskId].HasValue)
+        {
+            return editingTaskDueDates[taskId]!.Value.ToString("yyyy-MM-dd");
+        }
+        return "";
+    }
+
+    private void UpdateEditingTaskDueDate(string taskId, string? dateString)
+    {
+        if (string.IsNullOrEmpty(dateString))
+        {
+            editingTaskDueDates[taskId] = null;
+        }
+        else if (DateTime.TryParse(dateString, out DateTime parsedDate))
+        {
+            editingTaskDueDates[taskId] = parsedDate;
+        }
+
+        StateHasChanged();
+    }
+
+    // Метод для показа анимации успеха
+    private async Task ShowSuccessAnimation(string taskId)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval", $@"
+                const taskElement = document.getElementById('task-{taskId}');
+                if (taskElement) {{
+                    taskElement.classList.add('save-success');
+                    setTimeout(() => {{
+                        taskElement.classList.remove('save-success');
+                    }}, 2000);
+                }}
+            ");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка показа анимации успеха: {ex.Message}");
+        }
     }
 
     // Методы для стилизации

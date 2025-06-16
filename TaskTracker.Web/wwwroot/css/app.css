@@ -104,4 +104,252 @@
 button:focus-visible {
     outline: 2px solid #3b82f6;
     outline-offset: 2px;
+}
+
+/* Inline редактирование стили */
+.inline-edit-enter {
+    animation: inlineEditEnter 0.2s ease-out;
+}
+
+.inline-edit-exit {
+    animation: inlineEditExit 0.15s ease-in;
+}
+
+@keyframes inlineEditEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes inlineEditExit {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+}
+
+/* Подсветка редактируемых элементов */
+.inline-editable {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.inline-editable:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+    border-radius: 4px;
+}
+
+.inline-editable:hover::after {
+    content: "✏️";
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 12px;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Индикатор несохраненных изменений */
+.unsaved-changes {
+    position: relative;
+}
+
+.unsaved-changes::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 2px solid #f59e0b;
+    border-radius: 6px;
+    animation: unsavedPulse 2s infinite;
+}
+
+@keyframes unsavedPulse {
+    0%, 100% {
+        opacity: 0.3;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Валидация ошибок */
+.validation-error {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+.validation-error-message {
+    color: #ef4444;
+    font-size: 0.75rem;
+    margin-top: 4px;
+    animation: validationError 0.3s ease-out;
+}
+
+@keyframes validationError {
+    0% {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Успешное сохранение */
+.save-success {
+    animation: saveSuccess 0.6s ease-out;
+}
+
+@keyframes saveSuccess {
+    0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
+}
+
+/* Batch-редактирование стили */
+.batch-mode-enter {
+    animation: batchModeEnter 0.3s ease-out;
+}
+
+.batch-mode-exit {
+    animation: batchModeExit 0.2s ease-in;
+}
+
+@keyframes batchModeEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes batchModeExit {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+
+/* Выбранные задачи */
+.task-selected {
+    animation: taskSelected 0.3s ease-out;
+    transform: scale(1.02);
+}
+
+@keyframes taskSelected {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+    100% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+}
+
+/* Undo/Redo кнопки */
+.undo-redo-enter {
+    animation: undoRedoEnter 0.2s ease-out;
+}
+
+@keyframes undoRedoEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Batch панель анимации */
+.batch-panel-slide-down {
+    animation: batchPanelSlideDown 0.3s ease-out;
+}
+
+@keyframes batchPanelSlideDown {
+    from {
+        max-height: 0;
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        max-height: 200px;
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hover эффекты для batch-режима */
+.batch-mode .kanban-task:hover {
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.batch-mode .kanban-task.task-selected:hover {
+    transform: scale(1.04);
+}
+
+/* Keyboard shortcuts подсказки */
+.keyboard-hints {
+    animation: keyboardHints 0.4s ease-out;
+}
+
+@keyframes keyboardHints {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Прогресс batch операций */
+.batch-progress {
+    animation: batchProgress 0.3s ease-out;
+}
+
+@keyframes batchProgress {
+    from {
+        width: 0%;
+        opacity: 0;
+    }
+    to {
+        width: 100%;
+        opacity: 1;
+    }
 } 
