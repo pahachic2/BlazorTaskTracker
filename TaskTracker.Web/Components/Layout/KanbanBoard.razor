@@ -8,12 +8,48 @@
     {
         <div id="column-@column.Id" class="kanban-column flex-shrink-0 w-80 bg-gray-100 rounded-lg p-4 flex flex-col group">
             <!-- Заголовок колонки -->
-            <div class="flex items-center justify-between mb-4 relative">
-                <div class="flex items-center space-x-2">
-                    <h3 class="font-semibold text-gray-700 text-lg">@column.Title</h3>
-                    <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
-                        @column.Tasks.Count
-                    </span>
+            <div class="flex items-center justify-between mb-4 relative @(IsColumnEditing(column.Id) ? "ring-2 ring-blue-500 rounded bg-blue-50 p-2" : "")">
+                <div class="flex items-center space-x-2 flex-1">
+                    @if (IsColumnEditing(column.Id))
+                    {
+                        <!-- Режим редактирования заголовка колонки -->
+                        <div class="flex items-center space-x-2 flex-1 inline-edit-enter">
+                            <input type="text" 
+                                   @bind="editingColumnTitles[column.Id]" 
+                                   @onkeypress="@(async (e) => await HandleColumnTitleKeyPress(e, column))"
+                                   @onblur="@(async () => await SaveColumnChanges(column))"
+                                   @onfocus="@((e) => SelectColumnInputText(e))"
+                                   disabled="@IsColumnSaving(column.Id)"
+                                   class="flex-1 px-2 py-1 text-lg font-semibold text-gray-700 bg-white border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent @(IsColumnSaving(column.Id) ? "opacity-50 cursor-not-allowed" : "")"
+                                   placeholder="Введите название колонки..."
+                                   maxlength="100"
+                                   @onclick:stopPropagation="true" />
+                            @if (IsColumnSaving(column.Id))
+                            {
+                                <!-- Индикатор загрузки -->
+                                <svg class="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            }
+                            <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+                                @column.Tasks.Count
+                            </span>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Режим просмотра заголовка колонки -->
+                        <h3 class="font-semibold text-gray-700 text-lg cursor-pointer hover:text-blue-600 transition-colors inline-editable" 
+                           @onclick="@(() => StartEditingColumn(column))"
+                           @onclick:stopPropagation="true"
+                           title="Нажмите для редактирования названия колонки">
+                            @column.Title
+                        </h3>
+                        <span class="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+                            @column.Tasks.Count
+                        </span>
+                    }
                 </div>
                 
                 <!-- Кнопка удаления колонки (появляется при наведении) -->
@@ -232,15 +268,22 @@
     [Parameter] public EventCallback<KanbanTask> OnTaskDelete { get; set; }
 [Parameter] public EventCallback<KanbanColumn> OnColumnDelete { get; set; }
 [Parameter] public EventCallback<KanbanTask> OnTaskUpdate { get; set; }
+[Parameter] public EventCallback<KanbanColumn> OnColumnUpdate { get; set; }
 
 private bool jsInteropDone = false;
 
-// Состояние для inline редактирования
+// Состояние для inline редактирования задач
 private Dictionary<string, bool> taskEditingStates = new Dictionary<string, bool>();
 private Dictionary<string, string> editingTaskTitles = new Dictionary<string, string>();
 private Dictionary<string, DateTime?> editingTaskDueDates = new Dictionary<string, DateTime?>();
 private Dictionary<string, bool> taskSavingStates = new Dictionary<string, bool>(); // Индикатор загрузки
 private string? currentEditingTaskId = null; // Только одна задача может редактироваться одновременно
+
+// Состояние для inline редактирования колонок
+private Dictionary<string, bool> columnEditingStates = new Dictionary<string, bool>();
+private Dictionary<string, string> editingColumnTitles = new Dictionary<string, string>();
+private Dictionary<string, bool> columnSavingStates = new Dictionary<string, bool>(); // Индикатор загрузки
+private string? currentEditingColumnId = null; // Только одна колонка может редактироваться одновременно
     private DotNetObjectReference<KanbanBoard>? dotNetRef;
     private bool isTaskMoving = false; // Флаг для предотвращения переинициализации во время перемещения
 
@@ -457,6 +500,17 @@ document.head.appendChild(script);
         return taskSavingStates.ContainsKey(taskId) && taskSavingStates[taskId];
     }
 
+    // Методы для inline редактирования колонок - проверка состояния
+    private bool IsColumnEditing(string columnId)
+    {
+        return columnEditingStates.ContainsKey(columnId) && columnEditingStates[columnId];
+    }
+
+    private bool IsColumnSaving(string columnId)
+    {
+        return columnSavingStates.ContainsKey(columnId) && columnSavingStates[columnId];
+    }
+
     // Методы управления редактированием
     private void StartEditingTask(KanbanTask task)
     {
@@ -637,6 +691,174 @@ document.head.appendChild(script);
         return null;
     }
 
+    // Методы управления редактированием колонок
+    private void StartEditingColumn(KanbanColumn column)
+    {
+        // Отменяем редактирование другой колонки, если она есть
+        if (currentEditingColumnId != null && currentEditingColumnId != column.Id)
+        {
+            CancelEditingColumn(currentEditingColumnId);
+        }
+
+        // Отменяем редактирование задач при начале редактирования колонки
+        if (currentEditingTaskId != null)
+        {
+            CancelEditingTask(currentEditingTaskId);
+        }
+
+        currentEditingColumnId = column.Id;
+        columnEditingStates[column.Id] = true;
+        
+        // Сохраняем текущее значение для редактирования
+        editingColumnTitles[column.Id] = column.Title ?? "";
+        
+        StateHasChanged();
+        
+        // Фокус на поле ввода через небольшую задержку
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(50);
+            await InvokeAsync(async () =>
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("eval", $@"
+                        setTimeout(() => {{
+                            const titleInput = document.querySelector('#column-{column.Id} input[type=""text""]');
+                            if (titleInput) {{
+                                titleInput.focus();
+                                titleInput.select();
+                            }}
+                        }}, 10);
+                    ");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Ошибка фокуса на input колонки: {ex.Message}");
+                }
+            });
+        });
+    }
+
+    private void CancelEditingColumn(string columnId)
+    {
+        var column = GetColumnById(columnId);
+        if (column == null) return;
+        
+        // Восстанавливаем исходное значение
+        if (editingColumnTitles.ContainsKey(columnId))
+        {
+            editingColumnTitles[columnId] = column.Title;
+        }
+        
+        // Выходим из режима редактирования
+        if (columnEditingStates.ContainsKey(columnId))
+        {
+            columnEditingStates[columnId] = false;
+        }
+        
+        if (currentEditingColumnId == columnId)
+        {
+            currentEditingColumnId = null;
+        }
+        
+        StateHasChanged();
+    }
+
+    private async Task SaveColumnChanges(KanbanColumn column)
+    {
+        // Предотвращаем множественные сохранения
+        if (IsColumnSaving(column.Id))
+        {
+            Console.WriteLine($"⏳ Колонка {column.Id} уже сохраняется, пропускаем...");
+            return;
+        }
+
+        var hasChanges = false;
+        var validationErrors = new List<string>();
+        
+        // Проверяем и валидируем изменения в названии
+        if (editingColumnTitles.ContainsKey(column.Id))
+        {
+            var newTitle = editingColumnTitles[column.Id]?.Trim();
+            
+            // Валидация заголовка
+            if (string.IsNullOrEmpty(newTitle))
+            {
+                validationErrors.Add("Название колонки не может быть пустым");
+            }
+            else if (newTitle.Length > 100)
+            {
+                validationErrors.Add("Название колонки не может быть длиннее 100 символов");
+            }
+            else if (newTitle != column.Title)
+            {
+                // Проверка уникальности названия колонки в рамках проекта
+                var duplicateColumn = Columns.FirstOrDefault(c => c.Id != column.Id && 
+                    string.Equals(c.Title?.Trim(), newTitle, StringComparison.OrdinalIgnoreCase));
+                
+                if (duplicateColumn != null)
+                {
+                    validationErrors.Add("Колонка с таким названием уже существует");
+                }
+                else
+                {
+                    column.Title = newTitle;
+                    hasChanges = true;
+                }
+            }
+        }
+
+        // Если есть ошибки валидации, показываем их и не сохраняем
+        if (validationErrors.Any())
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Ошибки валидации:\n{string.Join("\n", validationErrors)}");
+            return; // Не выходим из режима редактирования
+        }
+
+        // Сохраняем изменения через родительский компонент
+        if (hasChanges && OnColumnUpdate.HasDelegate)
+        {
+            Console.WriteLine($"💾 Сохраняем изменения для колонки {column.Id}...");
+            
+            // Устанавливаем состояние загрузки
+            columnSavingStates[column.Id] = true;
+            StateHasChanged();
+            
+            try
+            {
+                await OnColumnUpdate.InvokeAsync(column);
+                Console.WriteLine($"✅ Колонка {column.Id} успешно сохранена");
+                
+                // Показываем индикатор успеха
+                await ShowColumnSuccessAnimation(column.Id);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Ошибка сохранения колонки {column.Id}: {ex.Message}");
+                // Возвращаем оригинальное значение при ошибке
+                var originalColumn = GetColumnById(column.Id);
+                if (originalColumn != null)
+                {
+                    editingColumnTitles[column.Id] = originalColumn.Title;
+                }
+            }
+            finally
+            {
+                // Снимаем состояние загрузки
+                columnSavingStates[column.Id] = false;
+            }
+        }
+        
+        // Выходим из режима редактирования
+        CancelEditingColumn(column.Id);
+    }
+
+    private KanbanColumn? GetColumnById(string columnId)
+    {
+        return Columns.FirstOrDefault(c => c.Id == columnId);
+    }
+
     // Обработчики событий для inline редактирования
     private async Task HandleTitleKeyPress(KeyboardEventArgs e, KanbanTask task)
     {
@@ -703,6 +925,25 @@ document.head.appendChild(script);
         StateHasChanged();
     }
 
+    // Обработчики событий для inline редактирования колонок
+    private async Task HandleColumnTitleKeyPress(KeyboardEventArgs e, KanbanColumn column)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveColumnChanges(column);
+        }
+        else if (e.Key == "Escape")
+        {
+            CancelEditingColumn(column.Id);
+        }
+    }
+
+    private async Task SelectColumnInputText(FocusEventArgs e)
+    {
+        // Выделяем весь текст при фокусе на input колонки
+        await JSRuntime.InvokeVoidAsync("eval", "event.target.select()");
+    }
+
     // Метод для показа анимации успеха
     private async Task ShowSuccessAnimation(string taskId)
     {
@@ -721,6 +962,27 @@ document.head.appendChild(script);
         catch (Exception ex)
         {
             Console.WriteLine($"❌ Ошибка показа анимации успеха: {ex.Message}");
+        }
+    }
+
+    // Метод для показа анимации успеха колонки
+    private async Task ShowColumnSuccessAnimation(string columnId)
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval", $@"
+                const columnElement = document.getElementById('column-{columnId}');
+                if (columnElement) {{
+                    columnElement.classList.add('save-success');
+                    setTimeout(() => {{
+                        columnElement.classList.remove('save-success');
+                    }}, 2000);
+                }}
+            ");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка показа анимации успеха колонки: {ex.Message}");
         }
     }
 

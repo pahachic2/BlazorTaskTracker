@@ -101,7 +101,8 @@
                                 OnTaskMoved="HandleTaskMoved"
                                 OnTaskDelete="HandleTaskDelete"
                                 OnColumnDelete="HandleColumnDelete"
-                                OnTaskUpdate="HandleTaskUpdate" />
+                                OnTaskUpdate="HandleTaskUpdate"
+                                OnColumnUpdate="HandleColumnUpdate" />
                         </div>
                     </div>
                 </div>
@@ -829,6 +830,45 @@
             
             // Показываем уведомление об ошибке пользователю
             await JSRuntime.InvokeVoidAsync("alert", $"Ошибка при сохранении изменений: {ex.Message}");
+            
+            // Перезагружаем данные чтобы вернуть оригинальные значения
+            await LoadProjectColumnsAsync();
+            
+            throw; // Перебрасываем исключение для обработки в KanbanBoard
+        }
+    }
+
+    // Обработчик для обновления колонок (inline editing)
+    private async Task HandleColumnUpdate(KanbanColumn column)
+    {
+        if (column == null)
+        {
+            Console.WriteLine("❌ Получена пустая колонка для обновления");
+            return;
+        }
+
+        try
+        {
+            Console.WriteLine($"💾 Обновляем колонку {column.Id}: Title='{column.Title}'");
+
+            var updateRequest = new UpdateColumnRequest
+            {
+                Title = column.Title,
+                Order = column.Order
+            };
+
+            await ApiService.UpdateColumnAsync(column.Id, updateRequest);
+            Console.WriteLine($"✅ Колонка {column.Id} успешно обновлена");
+
+            // Перезагружаем данные для обновления интерфейса
+            await LoadProjectColumnsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Ошибка при обновлении колонки {column.Id}: {ex.Message}");
+            
+            // Показываем уведомление об ошибке пользователю
+            await JSRuntime.InvokeVoidAsync("alert", $"Ошибка при сохранении изменений колонки: {ex.Message}");
             
             // Перезагружаем данные чтобы вернуть оригинальные значения
             await LoadProjectColumnsAsync();
