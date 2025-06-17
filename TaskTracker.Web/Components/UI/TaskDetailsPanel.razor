@@ -1,0 +1,554 @@
+@using TaskTracker.Models
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+@if (IsOpen && Task != null)
+{
+    <!-- Overlay для закрытия панели -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-40 task-details-overlay @(IsOpen ? "task-details-overlay-enter" : "task-details-overlay-exit")"
+         @onclick="HandleOverlayClick">
+    </div>
+
+    <!-- Боковая панель -->
+    <div class="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-2xl z-50 task-details-panel @(IsOpen ? "task-details-panel-enter" : "task-details-panel-exit")"
+         @onclick:stopPropagation="true">
+        
+        <!-- Заголовок панели с кнопкой закрытия -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-900">Детали задачи</h2>
+            <button @onclick="HandleClose" 
+                    class="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                    title="Закрыть">
+                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Основная информация о задаче (всегда видна сверху) -->
+        <div class="p-4 border-b border-gray-200 bg-white">
+            @if (isEditing)
+            {
+                <!-- Режим редактирования -->
+                <div class="space-y-4">
+                    <!-- Заголовок задачи (редактируемый) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Название задачи:</label>
+                        <input type="text" 
+                               @bind="editingTitle" 
+                               disabled="@isSaving"
+                               class="w-full px-3 py-2 text-lg font-bold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent @(isSaving ? "opacity-50 cursor-not-allowed" : "")"
+                               placeholder="Введите название задачи..."
+                               maxlength="200" />
+                    </div>
+
+                    <!-- Описание (редактируемое) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Описание:</label>
+                        <textarea @bind="editingDescription" 
+                                  disabled="@isSaving"
+                                  rows="4"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none @(isSaving ? "opacity-50 cursor-not-allowed" : "")"
+                                  placeholder="Введите описание задачи..."></textarea>
+                    </div>
+
+                    <!-- Метаданные в сетке -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Дата выполнения (редактируемая) -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Срок выполнения:</label>
+                            <div class="flex items-center space-x-2">
+                                <input type="date" 
+                                       value="@GetEditingDueDateString()"
+                                       @onchange="@((ChangeEventArgs e) => UpdateEditingDueDate(e.Value?.ToString()))"
+                                       disabled="@isSaving"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent @(isSaving ? "opacity-50 cursor-not-allowed" : "")" />
+                                <button @onclick="ClearEditingDueDate" 
+                                        disabled="@isSaving"
+                                        class="px-2 py-2 text-gray-400 hover:text-red-500 transition-colors @(isSaving ? "opacity-50 cursor-not-allowed" : "")"
+                                        title="Очистить дату">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Приоритет (редактируемый) -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Приоритет:</label>
+                            <select @bind="editingPriority" 
+                                    disabled="@isSaving"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent @(isSaving ? "opacity-50 cursor-not-allowed" : "")">
+                                <option value="Low">Низкий</option>
+                                <option value="Medium">Средний</option>
+                                <option value="High">Высокий</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Кнопки сохранения/отмены -->
+                    <div class="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t border-gray-200">
+                        <button @onclick="CancelEditing" 
+                                disabled="@isSaving"
+                                class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors @(isSaving ? "opacity-50 cursor-not-allowed" : "")">
+                            Отмена
+                        </button>
+                        <button @onclick="SaveChanges" 
+                                disabled="@isSaving"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center @(isSaving ? "opacity-50 cursor-not-allowed" : "")">
+                            @if (isSaving)
+                            {
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <text>Сохранение...</text>
+                            }
+                            else
+                            {
+                                <span>Сохранить</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Режим просмотра -->
+                <div class="space-y-4">
+                    <!-- Заголовок задачи с кнопкой редактирования -->
+                    <div class="flex items-start justify-between">
+                        <h3 class="text-xl font-bold text-gray-900 flex-1">@Task.Title</h3>
+                        <button @onclick="StartEditing" 
+                                class="ml-3 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                            Редактировать
+                        </button>
+                    </div>
+                    
+                    <!-- Описание -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Описание:</label>
+                        @if (!string.IsNullOrEmpty(Task.Description))
+                        {
+                            <p class="text-gray-600 text-sm leading-relaxed bg-gray-50 p-3 rounded-lg">@Task.Description</p>
+                        }
+                        else
+                        {
+                            <p class="text-gray-400 text-sm italic">Описание не указано</p>
+                        }
+                    </div>
+
+                    <!-- Метаданные в сетке -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Дата выполнения -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Срок выполнения:</label>
+                            @if (Task.DueDate.HasValue)
+                            {
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-600">@Task.DueDate.Value.ToString("dd MMMM yyyy")</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-gray-400 text-sm italic">Не указан</span>
+                            }
+                        </div>
+
+                        <!-- Приоритет -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Приоритет:</label>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Средний</span>
+                        </div>
+                    </div>
+
+                    <!-- Теги -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Теги:</label>
+                        @if (Task.Tags.Any())
+                        {
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var tag in Task.Tags)
+                                {
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        @tag
+                                    </span>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="text-gray-400 text-sm italic">Теги не указаны</span>
+                        }
+                    </div>
+
+                    <!-- Исполнители -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Исполнители:</label>
+                        @if (Task.Assignees.Any())
+                        {
+                            <div class="flex flex-wrap gap-2">
+                                @foreach (var assignee in Task.Assignees)
+                                {
+                                    <div class="flex items-center space-x-2 bg-gray-100 px-3 py-1 rounded-full">
+                                        <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
+                                            @assignee.Substring(0, 1).ToUpper()
+                                        </div>
+                                        <span class="text-sm text-gray-700">@assignee</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="text-gray-400 text-sm italic">Исполнители не назначены</span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Переключатель табов -->
+        <div class="border-b border-gray-200 bg-white">
+            <nav class="flex space-x-8 px-4">
+                <button @onclick="@(() => OnTabChange.InvokeAsync("history"))" 
+                        class="py-3 px-1 border-b-2 font-medium text-sm transition-colors @(SelectedTab == "history" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")">
+                    История
+                </button>
+                <button @onclick="@(() => OnTabChange.InvokeAsync("chat"))" 
+                        class="py-3 px-1 border-b-2 font-medium text-sm transition-colors @(SelectedTab == "chat" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")">
+                    Чат
+                </button>
+            </nav>
+        </div>
+
+        <!-- Контент табов -->
+        <div class="flex-1 overflow-y-auto p-4">
+            @if (SelectedTab == "history")
+            {
+                <!-- Заглушка для истории -->
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h3 class="mt-4 text-sm font-medium text-gray-900">История изменений</h3>
+                    <p class="mt-2 text-sm text-gray-500">Здесь будет отображаться история изменений задачи</p>
+                </div>
+            }
+            else if (SelectedTab == "chat")
+            {
+                <!-- Заглушка для чата -->
+                <div class="text-center py-12">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-2.293-.298l-3.707 3.707V8a8 8 0 018-8c4.418 0 8 3.582 8 8z"></path>
+                    </svg>
+                    <h3 class="mt-4 text-sm font-medium text-gray-900">Обсуждение задачи</h3>
+                    <p class="mt-2 text-sm text-gray-500">Здесь будут отображаться комментарии и обсуждения</p>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public KanbanTask? Task { get; set; }
+    [Parameter] public string SelectedTab { get; set; } = "history";
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<string> OnTabChange { get; set; }
+    [Parameter] public EventCallback<KanbanTask> OnTaskUpdate { get; set; }
+
+    // Состояние редактирования
+    private bool isEditing = false;
+    private bool isSaving = false;
+
+    // Редактируемые значения
+    private string editingTitle = "";
+    private string editingDescription = "";
+    private DateTime? editingDueDate = null;
+    private string editingPriority = "Medium";
+
+    private void HandleClose()
+    {
+        // Если редактируем - отменяем изменения перед закрытием
+        if (isEditing)
+        {
+            CancelEditing();
+        }
+        OnClose.InvokeAsync();
+    }
+
+    private void HandleOverlayClick()
+    {
+        HandleClose();
+    }
+
+    // Методы редактирования
+    private void StartEditing()
+    {
+        if (Task == null) return;
+
+        isEditing = true;
+        
+        // Копируем текущие значения для редактирования
+        editingTitle = Task.Title ?? "";
+        editingDescription = Task.Description ?? "";
+        editingDueDate = Task.DueDate;
+        editingPriority = "Medium"; // Пока заглушка, так как приоритет не реализован в модели
+        
+        StateHasChanged();
+    }
+
+    private void CancelEditing()
+    {
+        isEditing = false;
+        
+        // Сбрасываем редактируемые значения
+        editingTitle = "";
+        editingDescription = "";
+        editingDueDate = null;
+        editingPriority = "Medium";
+        
+        StateHasChanged();
+    }
+
+    private async Task SaveChanges()
+    {
+        if (Task == null || isSaving) return;
+
+        // Валидация
+        var validationErrors = new List<string>();
+        
+        if (string.IsNullOrWhiteSpace(editingTitle))
+        {
+            validationErrors.Add("Название задачи не может быть пустым");
+        }
+        else if (editingTitle.Length > 200)
+        {
+            validationErrors.Add("Название задачи не может быть длиннее 200 символов");
+        }
+
+        if (editingDueDate.HasValue && editingDueDate.Value.Date < DateTime.Today)
+        {
+            validationErrors.Add("Дата выполнения не может быть в прошлом");
+        }
+
+        if (validationErrors.Any())
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Ошибки валидации:\n{string.Join("\n", validationErrors)}");
+            return;
+        }
+
+        // Проверяем изменения
+        var hasChanges = editingTitle.Trim() != Task.Title ||
+                        editingDescription.Trim() != (Task.Description ?? "") ||
+                        editingDueDate != Task.DueDate;
+
+        if (!hasChanges)
+        {
+            // Нет изменений - просто выходим из режима редактирования
+            CancelEditing();
+            return;
+        }
+
+        isSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            // Создаем копию задачи с обновленными данными
+            var updatedTask = new KanbanTask
+            {
+                Id = Task.Id,
+                Title = editingTitle.Trim(),
+                Description = editingDescription.Trim(),
+                Tags = Task.Tags,
+                Assignees = Task.Assignees,
+                DueDate = editingDueDate,
+                ColumnId = Task.ColumnId,
+                Priority = Task.Priority, // Пока не меняем приоритет
+                Status = Task.Status
+            };
+
+            Console.WriteLine($"TaskDetailsPanel: Сохраняем изменения задачи {updatedTask.Id}");
+
+            // Отправляем изменения через родительский компонент
+            await OnTaskUpdate.InvokeAsync(updatedTask);
+
+            Console.WriteLine($"TaskDetailsPanel: Задача {updatedTask.Id} успешно обновлена");
+
+            // Выходим из режима редактирования
+            isEditing = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TaskDetailsPanel: Ошибка сохранения задачи: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", $"Ошибка при сохранении: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    // Вспомогательные методы для работы с датой
+    private string GetEditingDueDateString()
+    {
+        return editingDueDate?.ToString("yyyy-MM-dd") ?? "";
+    }
+
+    private void UpdateEditingDueDate(string? dateString)
+    {
+        if (string.IsNullOrEmpty(dateString))
+        {
+            editingDueDate = null;
+        }
+        else if (DateTime.TryParse(dateString, out DateTime parsedDate))
+        {
+            editingDueDate = parsedDate;
+        }
+        StateHasChanged();
+    }
+
+    private void ClearEditingDueDate()
+    {
+        editingDueDate = null;
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (IsOpen)
+        {
+            if (firstRender)
+            {
+                // Инициализируем обработчики клавиш
+                await InitializeKeyboardHandlers();
+            }
+
+            // Автофокус на первое поле при начале редактирования
+            if (isEditing)
+            {
+                await JSRuntime.InvokeVoidAsync("eval", @"
+                    setTimeout(() => {
+                        const titleInput = document.querySelector('.task-details-panel input[type=""text""]');
+                        if (titleInput) {
+                            titleInput.focus();
+                            titleInput.select();
+                        }
+                    }, 100);
+                ");
+            }
+        }
+    }
+
+    private async Task InitializeKeyboardHandlers()
+    {
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            // Простой обработчик для закрытия панели по Escape
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && document.querySelector('.task-details-panel')) {
+                    e.preventDefault();
+                    // Имитируем клик по кнопке закрытия
+                    const closeButton = document.querySelector('.task-details-panel button[title=""Закрыть""]');
+                    if (closeButton) {
+                        closeButton.click();
+                    }
+                }
+            });
+        ");
+    }
+}
+
+<style>
+    /* Анимации для панели */
+    .task-details-panel {
+        transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        backdrop-filter: blur(1px);
+    }
+
+    .task-details-panel-enter {
+        transform: translateX(0);
+    }
+
+    .task-details-panel-exit {
+        transform: translateX(100%);
+    }
+
+    /* Анимации для overlay */
+    .task-details-overlay {
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        backdrop-filter: blur(2px);
+    }
+
+    .task-details-overlay-enter {
+        opacity: 1;
+    }
+
+    .task-details-overlay-exit {
+        opacity: 0;
+    }
+
+    /* Адаптивность будет добавлена через классы Tailwind */
+
+    /* Плавные переходы для интерактивных элементов */
+    .task-details-panel input,
+    .task-details-panel textarea,
+    .task-details-panel select {
+        transition: all 0.2s ease-in-out;
+    }
+
+    .task-details-panel input:focus,
+    .task-details-panel textarea:focus,
+    .task-details-panel select:focus {
+        transform: scale(1.01);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* Анимация для кнопок */
+    .task-details-panel button {
+        transition: all 0.2s ease-in-out;
+    }
+
+    .task-details-panel button:hover:not(:disabled) {
+        transform: translateY(-1px);
+    }
+
+    .task-details-panel button:active:not(:disabled) {
+        transform: translateY(0);
+    }
+
+    /* Скролл для контента */
+    .task-details-panel .overflow-y-auto {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+    }
+
+    .task-details-panel .overflow-y-auto::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .task-details-panel .overflow-y-auto::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .task-details-panel .overflow-y-auto::-webkit-scrollbar-thumb {
+        background-color: rgba(156, 163, 175, 0.5);
+        border-radius: 2px;
+    }
+
+    .task-details-panel .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(156, 163, 175, 0.7);
+    }
+</style> 

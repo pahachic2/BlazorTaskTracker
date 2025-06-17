@@ -181,11 +181,19 @@
     OnCancel="HandleCancelDeleteTask"
     OnConfirm="HandleConfirmDeleteTask" />
 
-<!-- Модальное окно удаления колонки -->
-<ColumnDeleteModal IsVisible="isDeleteColumnModalVisible"
-    ColumnToDelete="columnToDelete"
-    OnCancel="HandleCancelDeleteColumn"
-    OnConfirm="HandleConfirmDeleteColumn" />
+    <!-- Модальное окно удаления колонки -->
+    <ColumnDeleteModal IsVisible="isDeleteColumnModalVisible"
+                       ColumnToDelete="columnToDelete"
+                       OnCancel="HandleCancelDeleteColumn"
+                       OnConfirm="HandleConfirmDeleteColumn" />
+
+    <!-- Панель деталей задачи -->
+    <TaskDetailsPanel IsOpen="isTaskDetailsPanelOpen"
+                      Task="selectedTaskForDetails"
+                      SelectedTab="selectedDetailTab"
+                      OnClose="HandleCloseTaskDetails"
+                      OnTabChange="HandleTabChange"
+                      OnTaskUpdate="HandleTaskUpdate" />
 
 @code {
     // Данные организаций
@@ -223,6 +231,11 @@
     // Задача для удаления
     private KanbanTask? taskToDelete = null;
     private KanbanColumn? columnToDelete = null;
+
+    // Состояние для панели деталей задачи
+    private bool isTaskDetailsPanelOpen = false;
+    private KanbanTask? selectedTaskForDetails = null;
+    private string selectedDetailTab = "history"; // "history" или "chat"
 
     // Ссылка на компонент KanbanBoard для переинициализации drag-and-drop
     private KanbanBoard? kanbanBoardRef;
@@ -480,10 +493,6 @@
     }
 
     // Обработчики событий для KanbanBoard компонента
-    private void HandleTaskClick(KanbanTask task)
-    {
-        Console.WriteLine($"Клик по задаче: {task.Title}");
-    }
 
     private void HandleAddTaskToColumn(string columnId)
     {
@@ -875,5 +884,40 @@
             
             throw; // Перебрасываем исключение для обработки в KanbanBoard
         }
+    }
+
+    // Обработчики для панели деталей задачи
+    private void HandleTaskClick(KanbanTask task)
+    {
+        Console.WriteLine($"🎯 Клик на задачу: {task.Title}");
+        
+        // Если была активна inline редактирование - отменяем его
+        if (kanbanBoardRef != null)
+        {
+            // Здесь можно добавить метод для отмены текущего редактирования
+            // kanbanBoardRef.CancelCurrentEditing();
+        }
+        
+        // Открываем панель деталей
+        selectedTaskForDetails = task;
+        isTaskDetailsPanelOpen = true;
+        selectedDetailTab = "history"; // По умолчанию открываем вкладку "История"
+        
+        StateHasChanged();
+    }
+
+    private void HandleCloseTaskDetails()
+    {
+        Console.WriteLine("🚪 Закрытие панели деталей задачи");
+        isTaskDetailsPanelOpen = false;
+        selectedTaskForDetails = null;
+        StateHasChanged();
+    }
+
+    private void HandleTabChange(string tab)
+    {
+        Console.WriteLine($"📑 Переключение на вкладку: {tab}");
+        selectedDetailTab = tab;
+        StateHasChanged();
     }
 }
