@@ -20,4 +20,8 @@ public interface IOrganizationService
     Task<AcceptInvitationResponse> AcceptInvitationAsync(AcceptInvitationRequest request);
     Task<InvitationInfoResponse> GetInvitationInfoAsync(string token);
     Task<bool> DeclineInvitationAsync(DeclineInvitationRequest request);
+    Task<bool> HasOrganizationPermissionAsync(string organizationId, string userId, OrganizationRole minimumRole);
+    
+    // НОВЫЙ МЕТОД: Получить приглашения пользователя
+    Task<List<InvitationResponse>> GetUserInvitationsAsync(string userId);
 } 

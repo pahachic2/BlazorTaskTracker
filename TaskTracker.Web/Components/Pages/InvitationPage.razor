@@ -1,6 +1,7 @@
 @page "/invitations/{token}"
 @using TaskTracker.Models
 @using TaskTracker.Models.DTOs
+@using TaskTracker.Web.Components.Modals
 @inject OrganizationInvitationService InvitationService
 @inject NavigationManager NavigationManager
 @inject ILocalStorageService LocalStorage
@@ -279,6 +280,9 @@
             
             if (result?.Success == true)
             {
+                // Очищаем кеш участников (новый пользователь присоединился)
+                TaskCreateModal.ClearMembersCache();
+
                 // Если получен JWT токен, сохраняем его и авторизуем пользователя
                 if (!string.IsNullOrEmpty(result.Token))
                 {

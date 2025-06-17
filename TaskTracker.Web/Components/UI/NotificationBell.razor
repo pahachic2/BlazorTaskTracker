@@ -1,0 +1,400 @@
+@using TaskTracker.Web.Models
+@using TaskTracker.Web.Services
+@inject INotificationService NotificationService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+<!-- Колокольчик уведомлений -->
+<div class="relative">
+    <!-- Кнопка колокольчика -->
+    <button @onclick="ToggleNotifications"
+            class="relative p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full transition-colors">
+        
+        <!-- Иконка колокольчика -->
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+        
+        <!-- Красный бейдж с количеством -->
+        @if (unreadCount > 0)
+        {
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full min-w-[20px] h-5">
+                @(unreadCount > 99 ? "99+" : unreadCount.ToString())
+            </span>
+        }
+    </button>
+
+    <!-- Выпадающее меню уведомлений -->
+    @if (showNotifications)
+    {
+        <div class="absolute top-full right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+             @onclick:stopPropagation="true">
+            
+            <!-- Заголовок -->
+            <div class="px-4 py-3 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900">Уведомления</h3>
+                    <div class="flex items-center space-x-2">
+                        @if (unreadCount > 0)
+                        {
+                            <button @onclick="MarkAllAsRead"
+                                    class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                                Отметить все как прочитанные
+                            </button>
+                        }
+                        <button @onclick="CloseNotifications"
+                                class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Контент уведомлений -->
+            <div class="max-h-96 overflow-y-auto">
+                @if (isLoading)
+                {
+                    <!-- Состояние загрузки -->
+                    <div class="px-4 py-8 text-center">
+                        <svg class="animate-spin mx-auto h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="mt-2 text-sm text-gray-500">Загрузка уведомлений...</p>
+                    </div>
+                }
+                else if (notifications.Count == 0)
+                {
+                    <!-- Пустое состояние -->
+                    <div class="px-4 py-8 text-center">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900">Нет уведомлений</h3>
+                        <p class="mt-1 text-sm text-gray-500">У вас пока нет новых уведомлений</p>
+                    </div>
+                }
+                else
+                {
+                    <!-- Список уведомлений -->
+                    @foreach (var notification in notifications)
+                    {
+                        <div class="border-b border-gray-100 last:border-b-0 
+                                    @(notification.IsRead ? "bg-gray-50" : "bg-white") 
+                                    hover:bg-gray-50 transition-colors">
+                            <div class="px-4 py-3">
+                                <div class="flex items-start space-x-3">
+                                    <!-- Иконка типа уведомления -->
+                                    <div class="flex-shrink-0">
+                                        @if (notification.Type == NotificationType.Invitation)
+                                        {
+                                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                                </svg>
+                                            </div>
+                                        }
+                                        else if (notification.Type == NotificationType.Success)
+                                        {
+                                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                            </div>
+                                        }
+                                        else if (notification.Type == NotificationType.Error)
+                                        {
+                                            <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                                                <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                                                <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                            </div>
+                                        }
+                                        
+                                        <!-- Индикатор непрочитанного -->
+                                        @if (!notification.IsRead)
+                                        {
+                                            <div class="absolute top-0 right-0 w-2 h-2 bg-blue-600 rounded-full"></div>
+                                        }
+                                    </div>
+
+                                    <!-- Контент уведомления -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <h4 class="text-sm font-medium text-gray-900 truncate">@notification.Title</h4>
+                                            <button @onclick="@(() => DeleteNotification(notification.Id))"
+                                                    class="text-gray-400 hover:text-gray-600 ml-2">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        
+                                        <p class="text-sm text-gray-600 mb-2">@notification.Message</p>
+                                        
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs text-gray-400">
+                                                @GetTimeAgo(notification.CreatedAt)
+                                            </span>
+                                            
+                                            @if (!notification.IsRead)
+                                            {
+                                                <button @onclick="@(() => MarkAsRead(notification.Id))"
+                                                        class="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                                    Отметить как прочитанное
+                                                </button>
+                                            }
+                                        </div>
+
+                                        <!-- Кнопки действий для приглашений -->
+                                        @if (notification.Type == NotificationType.Invitation)
+                                        {
+                                            <div class="flex space-x-2 mt-3">
+                                                <button @onclick="@(() => AcceptInvitationDirect(notification.Id))"
+                                                        @onclick:stopPropagation="true"
+                                                        disabled="@isProcessing"
+                                                        class="inline-flex items-center px-3 py-1 text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                                    @if (isProcessing && processingNotificationId == notification.Id)
+                                                    {
+                                                        <svg class="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                    }
+                                                    Принять
+                                                </button>
+                                                <button @onclick="@(() => DeclineInvitation(notification.Id))"
+                                                        @onclick:stopPropagation="true"
+                                                        disabled="@isProcessing"
+                                                        class="inline-flex items-center px-3 py-1 text-xs font-medium rounded text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                                    Отклонить
+                                                </button>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<NotificationItem> notifications = new();
+    private bool showNotifications = false;
+    private bool isLoading = false;
+    private bool isProcessing = false;
+    private string? processingNotificationId = null;
+    private int unreadCount = 0;
+    private Timer? refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("🔔 BELL: Инициализация компонента колокольчика");
+        
+        // Подписываемся на изменения уведомлений
+        NotificationService.NotificationsChanged += OnNotificationsChanged;
+        
+        // Загружаем уведомления впервые
+        await NotificationService.RefreshNotificationsAsync();
+        
+        // Автоматическое обновление каждые 30 секунд
+        refreshTimer = new Timer(async _ => await NotificationService.RefreshNotificationsAsync(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        
+        await base.OnInitializedAsync();
+    }
+
+    private async Task ToggleNotifications()
+    {
+        showNotifications = !showNotifications;
+        if (showNotifications)
+        {
+            await LoadNotifications();
+        }
+    }
+
+    private void CloseNotifications()
+    {
+        showNotifications = false;
+    }
+
+    private async Task LoadNotifications()
+    {
+        if (isLoading) return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine("🔔 BELL: Загружаем уведомления");
+            notifications = await NotificationService.GetNotificationsAsync();
+            unreadCount = await NotificationService.GetUnreadCountAsync();
+            Console.WriteLine($"🔔 BELL: Найдено {notifications.Count} уведомлений, {unreadCount} непрочитанных");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ BELL: Ошибка загрузки уведомлений: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarkAsRead(string notificationId)
+    {
+        await NotificationService.MarkAsReadAsync(notificationId);
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        await NotificationService.MarkAllAsReadAsync();
+    }
+
+    private async Task DeleteNotification(string notificationId)
+    {
+        await NotificationService.DeleteNotificationAsync(notificationId);
+    }
+
+    private void AcceptInvitationDirect(string notificationId)
+    {
+        Console.WriteLine($"🚨🚨🚨 DIRECT CLICK: Кнопка принять нажата для {notificationId}");
+        InvokeAsync(async () => await AcceptInvitation(notificationId));
+    }
+
+    private async Task AcceptInvitation(string notificationId)
+    {
+        Console.WriteLine($"🔔 BELL: *** КНОПКА НАЖАТА *** notificationId: {notificationId}");
+        
+        if (isProcessing) 
+        {
+            Console.WriteLine($"🔔 BELL: Уже обрабатываем, выходим");
+            return;
+        }
+
+        Console.WriteLine($"🔔 BELL: Начинаем принятие приглашения для уведомления {notificationId}");
+
+        isProcessing = true;
+        processingNotificationId = notificationId;
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine($"🔔 BELL: Вызываем NotificationService.AcceptInvitationFromNotificationAsync");
+            var success = await NotificationService.AcceptInvitationFromNotificationAsync(notificationId);
+            Console.WriteLine($"🔔 BELL: Результат принятия приглашения: {success}");
+            
+            if (success)
+            {
+                Console.WriteLine($"🔔 BELL: Приглашение успешно принято, перезагружаем страницу");
+                // Перезагружаем страницу для обновления списка организаций
+                await Task.Delay(1000);
+                NavigationManager.NavigateTo("/", true);
+            }
+            else
+            {
+                Console.WriteLine($"🔔 BELL: Не удалось принять приглашение");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ BELL: Ошибка принятия приглашения: {ex.Message}");
+            Console.WriteLine($"❌ BELL: Stack trace: {ex.StackTrace}");
+        }
+        finally
+        {
+            isProcessing = false;
+            processingNotificationId = null;
+            StateHasChanged();
+            Console.WriteLine($"🔔 BELL: Завершили обработку принятия приглашения");
+        }
+    }
+
+    private async Task DeclineInvitation(string notificationId)
+    {
+        if (isProcessing) return;
+
+        isProcessing = true;
+        processingNotificationId = notificationId;
+        StateHasChanged();
+
+        try
+        {
+            await NotificationService.DeclineInvitationFromNotificationAsync(notificationId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ BELL: Ошибка отклонения приглашения: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+            processingNotificationId = null;
+            StateHasChanged();
+        }
+    }
+
+    private void OnNotificationsChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            Console.WriteLine("🔔 BELL: Получено уведомление об изменениях, обновляем локальные данные");
+            // Вместо полной перезагрузки, просто синхронизируем данные
+            notifications = await NotificationService.GetNotificationsAsync();
+            unreadCount = await NotificationService.GetUnreadCountAsync();
+            Console.WriteLine($"🔔 BELL: Данные обновлены: {notifications.Count} уведомлений, {unreadCount} непрочитанных");
+            StateHasChanged();
+        });
+    }
+
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+        
+        return timeSpan.TotalDays switch
+        {
+            >= 1 => $"{(int)timeSpan.TotalDays} дн. назад",
+            _ => timeSpan.TotalHours switch
+            {
+                >= 1 => $"{(int)timeSpan.TotalHours} ч. назад",
+                _ => timeSpan.TotalMinutes switch
+                {
+                    >= 1 => $"{(int)timeSpan.TotalMinutes} мин. назад",
+                    _ => "Только что"
+                }
+            }
+        };
+    }
+
+    // Публичный метод для обновления уведомлений (можно вызывать из родительского компонента)
+    public async Task RefreshNotifications()
+    {
+        await LoadNotifications();
+    }
+
+    public void Dispose()
+    {
+        NotificationService.NotificationsChanged -= OnNotificationsChanged;
+        refreshTimer?.Dispose();
+    }
+} 

@@ -35,6 +35,15 @@ public class InvitationResponse
     public DateTime ExpiresAt { get; set; }
     public DateTime? AcceptedAt { get; set; }
     public bool IsExpired => DateTime.UtcNow > ExpiresAt;
+    
+    // Добавляем токен для принятия приглашения из интерфейса
+    public string Token { get; set; } = string.Empty;
+    
+    // Указывает, был ли отправлен email (для незарегистрированных) или только уведомление в интерфейс (для зарегистрированных)
+    public bool EmailSent { get; set; } = false;
+    
+    // Указывает, был ли пользователь зарегистрирован на момент отправки приглашения
+    public bool UserWasRegistered { get; set; } = false;
 }
 
 /// <summary>
@@ -44,6 +53,9 @@ public class AcceptInvitationRequest
 {
     [Required(ErrorMessage = "Токен приглашения обязателен")]
     public string Token { get; set; } = string.Empty;
+
+    // Для авторизованных пользователей (автоматически заполняется из JWT)
+    public string? UserId { get; set; }
 
     // Если пользователь еще не зарегистрирован
     [StringLength(50, ErrorMessage = "Имя пользователя не должно превышать 50 символов")]
@@ -102,4 +114,24 @@ public class OrganizationMemberResponse
     public OrganizationRole Role { get; set; }
     public DateTime JoinedAt { get; set; }
     public bool IsActive { get; set; }
+}
+
+/// <summary>
+/// DTO для ответа на поиск пользователя
+/// </summary>
+public class UserSearchResponse
+{
+    public bool Found { get; set; }
+    public UserSearchResult? User { get; set; }
+}
+
+/// <summary>
+/// DTO для результата поиска пользователя
+/// </summary>
+public class UserSearchResult
+{
+    public string UserId { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public bool IsAlreadyMember { get; set; }
 } 

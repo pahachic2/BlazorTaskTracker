@@ -1,3 +1,4 @@
+using TaskTracker.Models;
 using TaskTracker.Models.DTOs;
 
 namespace TaskTracker.Web.Services;
@@ -50,4 +51,11 @@ public interface IApiService
     Task<InvitationInfoResponse?> GetInvitationInfoAsync(string token);
     Task<AcceptInvitationResponse?> AcceptInvitationAsync(AcceptInvitationRequest request);
     Task<bool> DeclineInvitationAsync(DeclineInvitationRequest request);
+
+    // НОВЫЙ МЕТОД: Получить приглашения текущего пользователя
+    Task<List<InvitationResponse>> GetUserInvitationsAsync();
+
+    // Поиск и добавление пользователей
+    Task<UserSearchResponse?> SearchUserByEmailAsync(string organizationId, string email);
+    Task<bool> AddExistingUserAsync(string organizationId, string userId, OrganizationRole role = OrganizationRole.Member);
 } 

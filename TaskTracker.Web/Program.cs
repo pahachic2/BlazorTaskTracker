@@ -32,4 +32,7 @@ builder.Services.AddScoped<OrganizationInvitationService>();
 // Регистрируем сервис для всплывающих сообщений
 builder.Services.AddScoped<IToastService, ToastService>();
 
+// Регистрируем сервис для уведомлений
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
 await builder.Build().RunAsync();

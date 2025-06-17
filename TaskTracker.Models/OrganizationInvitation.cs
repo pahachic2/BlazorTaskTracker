@@ -44,6 +44,12 @@ public class OrganizationInvitation
     [BsonElement("acceptedBy")]
     [BsonRepresentation(BsonType.ObjectId)]
     public string? AcceptedBy { get; set; } // ID пользователя, который принял приглашение
+
+    [BsonElement("emailSent")]
+    public bool EmailSent { get; set; } = false; // Был ли отправлен email
+
+    [BsonElement("userWasRegistered")]
+    public bool UserWasRegistered { get; set; } = false; // Был ли пользователь зарегистрирован на момент приглашения
 }
 
 /// <summary>

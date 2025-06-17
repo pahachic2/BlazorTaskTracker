@@ -1,5 +1,6 @@
 @using TaskTracker.Models
 @using TaskTracker.Models.DTOs
+@using TaskTracker.Web.Components.Modals
 @inject OrganizationInvitationService InvitationService
 
 @* Модальное окно приглашения пользователя *@
@@ -170,6 +171,9 @@
             
             if (invitation != null)
             {
+                // Очищаем кеш участников для всех проектов (так как могут быть разные проекты в одной организации)
+                TaskCreateModal.ClearMembersCache();
+                
                 await OnInvitationSent.InvokeAsync(invitation);
                 await HandleClose();
             }

@@ -183,6 +183,14 @@
                                                 {
                                                     <span> • Истекает @invitation.ExpiresAt.ToString("dd.MM.yyyy")</span>
                                                 }
+                                                @if (!invitation.EmailSent && invitation.UserWasRegistered)
+                                                {
+                                                    <span class="ml-2 text-blue-600">• Уведомление в интерфейсе</span>
+                                                }
+                                                else if (invitation.EmailSent && !invitation.UserWasRegistered)
+                                                {
+                                                    <span class="ml-2 text-green-600">• Email отправлен</span>
+                                                }
                                             </p>
                                         </div>
                                     </div>

@@ -1,6 +1,8 @@
 @using TaskTracker.Models
+@using TaskTracker.Models.DTOs
 @using Microsoft.JSInterop
 @inject IJSRuntime JSRuntime
+@inject IApiService ApiService
 
 @if (IsOpen && Task != null)
 {
@@ -87,6 +89,72 @@
                         </div>
                     </div>
 
+                    <!-- Исполнители (редактируемые) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Исполнители:</label>
+                        <div class="space-y-3">
+                            <!-- Назначенные исполнители -->
+                            @if (editingAssigneeIds.Any())
+                            {
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach (var assigneeId in editingAssigneeIds)
+                                    {
+                                        var member = availableMembers.FirstOrDefault(m => m.UserId == assigneeId);
+                                        if (member != null)
+                                        {
+                                            <div class="flex items-center space-x-2 bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                                                <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
+                                                    @member.Username.Substring(0, 1).ToUpper()
+                                                </div>
+                                                <span class="text-sm font-medium">@member.Username</span>
+                                                <button @onclick="@(() => RemoveAssignee(assigneeId))" 
+                                                        disabled="@isSaving"
+                                                        class="text-blue-600 hover:text-blue-800 transition-colors @(isSaving ? "opacity-50 cursor-not-allowed" : "")"
+                                                        title="Удалить исполнителя">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-gray-400 text-sm italic">Исполнители не назначены</span>
+                            }
+
+                            <!-- Выпадающий список для добавления новых исполнителей -->
+                            @if (availableMembers.Any(m => !editingAssigneeIds.Contains(m.UserId)))
+                            {
+                                <div class="mt-3">
+                                    <select @onchange="@((ChangeEventArgs e) => AddAssignee(e.Value?.ToString()))"
+                                            disabled="@isSaving"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm @(isSaving ? "opacity-50 cursor-not-allowed" : "")">
+                                        <option value="">+ Добавить исполнителя</option>
+                                        @foreach (var member in availableMembers.Where(m => !editingAssigneeIds.Contains(m.UserId)))
+                                        {
+                                            <option value="@member.UserId">@member.Username (@member.Email)</option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+
+                            <!-- Статус загрузки участников -->
+                            @if (isLoadingMembers)
+                            {
+                                <div class="flex items-center space-x-2 text-gray-500 text-sm">
+                                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 818-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>Загрузка участников...</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
                     <!-- Кнопки сохранения/отмены -->
                     <div class="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t border-gray-200">
                         <button @onclick="CancelEditing" 
@@ -101,7 +169,7 @@
                             {
                                 <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 818-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
                                 <text>Сохранение...</text>
                             }
@@ -198,7 +266,7 @@
                                 @foreach (var assignee in Task.Assignees)
                                 {
                                     <div class="flex items-center space-x-2 bg-gray-100 px-3 py-1 rounded-full">
-                                        <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
+                                        <div class="w-6 h-6 rounded-full @GetAssigneeColor(assignee) flex items-center justify-center text-white text-xs font-medium">
                                             @assignee.Substring(0, 1).ToUpper()
                                         </div>
                                         <span class="text-sm text-gray-700">@assignee</span>
@@ -275,6 +343,11 @@
     private DateTime? editingDueDate = null;
     private string editingPriority = "Medium";
 
+    // Исполнители
+    private List<string> editingAssigneeIds = new();
+    private List<OrganizationMemberResponse> availableMembers = new();
+    private bool isLoadingMembers = false;
+
     private void HandleClose()
     {
         // Если редактируем - отменяем изменения перед закрытием
@@ -291,7 +364,7 @@
     }
 
     // Методы редактирования
-    private void StartEditing()
+    private async Task StartEditing()
     {
         if (Task == null) return;
 
@@ -302,6 +375,10 @@
         editingDescription = Task.Description ?? "";
         editingDueDate = Task.DueDate;
         editingPriority = "Medium"; // Пока заглушка, так как приоритет не реализован в модели
+        editingAssigneeIds = new List<string>(Task.AssigneeIds ?? new List<string>());
+
+        // Загружаем участников организации
+        await LoadOrganizationMembers();
         
         StateHasChanged();
     }
@@ -315,6 +392,7 @@
         editingDescription = "";
         editingDueDate = null;
         editingPriority = "Medium";
+        editingAssigneeIds.Clear();
         
         StateHasChanged();
     }
@@ -349,7 +427,8 @@
         // Проверяем изменения
         var hasChanges = editingTitle.Trim() != Task.Title ||
                         editingDescription.Trim() != (Task.Description ?? "") ||
-                        editingDueDate != Task.DueDate;
+                        editingDueDate != Task.DueDate ||
+                        !editingAssigneeIds.SequenceEqual(Task.AssigneeIds ?? new List<string>());
 
         if (!hasChanges)
         {
@@ -370,14 +449,15 @@
                 Title = editingTitle.Trim(),
                 Description = editingDescription.Trim(),
                 Tags = Task.Tags,
-                Assignees = Task.Assignees,
+                AssigneeIds = new List<string>(editingAssigneeIds),
+                Assignees = GetAssigneeNames(),
                 DueDate = editingDueDate,
                 ColumnId = Task.ColumnId,
                 Priority = Task.Priority, // Пока не меняем приоритет
                 Status = Task.Status
             };
 
-            Console.WriteLine($"TaskDetailsPanel: Сохраняем изменения задачи {updatedTask.Id}");
+            Console.WriteLine($"TaskDetailsPanel: Сохраняем изменения задачи {updatedTask.Id} с исполнителями: {string.Join(", ", editingAssigneeIds)}");
 
             // Отправляем изменения через родительский компонент
             await OnTaskUpdate.InvokeAsync(updatedTask);
@@ -398,6 +478,62 @@
             isSaving = false;
             StateHasChanged();
         }
+    }
+
+    // Методы для работы с исполнителями
+    private async Task LoadOrganizationMembers()
+    {
+        if (Task?.ProjectId == null) return;
+
+        try
+        {
+            isLoadingMembers = true;
+            StateHasChanged();
+
+            // Получаем информацию о проекте чтобы найти организацию
+            var projects = await ApiService.GetUserProjectsAsync();
+            var project = projects.FirstOrDefault(p => p.Id == Task.ProjectId);
+            
+            if (project?.OrganizationId != null)
+            {
+                availableMembers = await ApiService.GetOrganizationMembersAsync(project.OrganizationId);
+                Console.WriteLine($"TaskDetailsPanel: Загружено {availableMembers.Count} участников организации");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TaskDetailsPanel: Ошибка загрузки участников: {ex.Message}");
+            availableMembers = new List<OrganizationMemberResponse>();
+        }
+        finally
+        {
+            isLoadingMembers = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AddAssignee(string? userId)
+    {
+        if (string.IsNullOrEmpty(userId) || editingAssigneeIds.Contains(userId))
+            return;
+
+        editingAssigneeIds.Add(userId);
+        StateHasChanged();
+    }
+
+    private void RemoveAssignee(string userId)
+    {
+        editingAssigneeIds.Remove(userId);
+        StateHasChanged();
+    }
+
+    private List<string> GetAssigneeNames()
+    {
+        return editingAssigneeIds
+            .Select(id => availableMembers.FirstOrDefault(m => m.UserId == id)?.Username)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Cast<string>()
+            .ToList();
     }
 
     // Вспомогательные методы для работы с датой
@@ -423,6 +559,18 @@
     {
         editingDueDate = null;
         StateHasChanged();
+    }
+
+    // Цвета для аватаров
+    private string GetAssigneeColor(string assignee)
+    {
+        var hash = assignee.GetHashCode();
+        var colors = new[]
+        {
+            "bg-blue-500", "bg-green-500", "bg-purple-500", "bg-pink-500",
+            "bg-indigo-500", "bg-red-500", "bg-yellow-500", "bg-teal-500"
+        };
+        return colors[Math.Abs(hash) % colors.Length];
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

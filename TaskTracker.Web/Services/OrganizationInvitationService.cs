@@ -160,7 +160,8 @@ public class OrganizationInvitationService
     {
         try
         {
-            _logger.LogInformation($"✅ Принимаем приглашение {request.Token}");
+            _logger.LogInformation($"✅ INVITATION_SERVICE: Принимаем приглашение {request.Token}");
+            Console.WriteLine($"✅ INVITATION_SERVICE: Вызываем API для принятия приглашения с токеном {request.Token[..10]}...");
             
             var result = await _apiService.AcceptInvitationAsync(request);
             
@@ -168,14 +169,22 @@ public class OrganizationInvitationService
             {
                 // Очищаем весь кэш, так как изменились участники
                 ClearAllCache();
-                _logger.LogInformation($"✅ Приглашение {request.Token} принято");
+                _logger.LogInformation($"✅ INVITATION_SERVICE: Приглашение {request.Token} принято");
+                Console.WriteLine($"✅ INVITATION_SERVICE: Приглашение успешно принято: {result.Message}");
+            }
+            else
+            {
+                _logger.LogWarning($"❌ INVITATION_SERVICE: Не удалось принять приглашение: {result?.Message}");
+                Console.WriteLine($"❌ INVITATION_SERVICE: Не удалось принять приглашение: {result?.Message}");
             }
             
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"❌ Ошибка при принятии приглашения {request.Token}");
+            _logger.LogError(ex, $"❌ INVITATION_SERVICE: Ошибка при принятии приглашения {request.Token}");
+            Console.WriteLine($"❌ INVITATION_SERVICE: Исключение при принятии приглашения: {ex.Message}");
+            Console.WriteLine($"❌ INVITATION_SERVICE: Stack trace: {ex.StackTrace}");
             _toastService.ShowError("Ошибка принятия", ex.Message);
             return null;
         }
@@ -258,7 +267,7 @@ public class OrganizationInvitationService
     }
 
     /// <summary>
-    /// Получить CSS класс для статуса приглашения
+    /// Получить CSS классы для статуса приглашения
     /// </summary>
     public string GetInvitationStatusCssClass(InvitationStatus status)
     {

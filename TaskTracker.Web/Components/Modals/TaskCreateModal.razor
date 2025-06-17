@@ -1,4 +1,8 @@
 @* Модальное окно для создания новой задачи *@
+@using TaskTracker.Models
+@using TaskTracker.Models.DTOs
+@using Microsoft.AspNetCore.Components.Web
+@inject IApiService ApiService
 
 @if (IsVisible)
 {
@@ -77,32 +81,61 @@
                             Исполнители
                         </label>
                         <div class="flex flex-wrap gap-2 mb-2">
-                            @foreach (var assignee in newTask.Assignees)
+                            @foreach (var assigneeId in newTask.AssigneeIds)
                             {
-                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium flex items-center">
-                                    @assignee
-                                    <button type="button" @onclick="@(() => RemoveAssignee(assignee))" class="ml-1 text-xs">×</button>
-                                </span>
+                                var member = availableMembers.FirstOrDefault(m => m.UserId == assigneeId);
+                                if (member != null)
+                                {
+                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium flex items-center">
+                                        @member.Username
+                                        <button type="button" @onclick="@(() => RemoveAssigneeById(assigneeId))" class="ml-1 text-xs">×</button>
+                                    </span>
+                                }
                             }
                         </div>
                         <div class="flex">
-                            <input type="text" @bind="newAssigneeInput" @onkeypress="HandleAssigneeKeyPress"
+                            <input type="text" @bind="newAssigneeInput" @onkeypress="HandleAssigneeKeyPress" @oninput="HandleAssigneeInput"
                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                   placeholder="Добавить исполнителя..." />
+                                   placeholder="Введите имя или email исполнителя..." />
                             <button type="button" @onclick="AddAssignee"
                                     class="px-4 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg hover:bg-gray-200 transition-colors">
                                 +
                             </button>
                         </div>
-                        <div class="flex flex-wrap gap-1 mt-2">
-                            @foreach (var presetAssignee in PresetAssignees)
-                            {
-                                <button type="button" @onclick="@(() => AddPresetAssignee(presetAssignee))"
-                                        class="text-xs px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 transition-colors">
-                                    @presetAssignee
-                                </button>
-                            }
-                        </div>
+                        
+                        <!-- Автодополнение -->
+                        @if (filteredMembers.Any() && !string.IsNullOrWhiteSpace(newAssigneeInput))
+                        {
+                            <div class="mt-1 border border-gray-200 rounded-lg bg-white shadow-sm max-h-32 overflow-y-auto">
+                                @foreach (var member in filteredMembers.Take(5))
+                                {
+                                    <button type="button" @onclick="@(() => SelectMember(member))"
+                                            class="w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors flex items-center space-x-2">
+                                        <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-medium">
+                                            @member.Username.Substring(0, 1).ToUpper()
+                                        </div>
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">@member.Username</div>
+                                            <div class="text-xs text-gray-500">@member.Email</div>
+                                        </div>
+                                    </button>
+                                }
+                            </div>
+                        }
+
+                        <!-- Информация о доступных участниках -->
+                        @if (availableMembers.Any())
+                        {
+                            <div class="mt-2 text-xs text-gray-500">
+                                Доступно участников: @availableMembers.Count
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mt-2 text-xs text-orange-600">
+                                В организации нет участников для назначения
+                            </div>
+                        }
                     </div>
 
                     <!-- Дата выполнения -->
@@ -133,6 +166,7 @@
 
 @code {
     [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string? ProjectId { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<KanbanTask> OnTaskCreated { get; set; }
 
@@ -141,16 +175,21 @@
     private string newAssigneeInput = "";
     private DateTime? dueDate;
 
+    // Данные об участниках организации
+    private List<OrganizationMemberResponse> availableMembers = new();
+    private List<OrganizationMemberResponse> filteredMembers = new();
+    private static readonly Dictionary<string, List<OrganizationMemberResponse>> _membersCache = new();
+
     private readonly List<string> PresetTags = new() { "Frontend", "Backend", "Bug", "Feature", "Urgent", "Design", "Testing", "DevOps", "Documentation" };
-    private readonly List<string> PresetAssignees = new() { "Анна Иванова", "Петр Сидоров", "Мария Петрова", "Иван Козлов" };
 
     private bool IsFormValid => !string.IsNullOrWhiteSpace(newTask.Title);
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        if (IsVisible)
+        if (IsVisible && !string.IsNullOrEmpty(ProjectId))
         {
             ResetForm();
+            await LoadOrganizationMembers();
         }
     }
 
@@ -160,11 +199,58 @@
         {
             Id = Guid.NewGuid().ToString(),
             Tags = new List<string>(),
-            Assignees = new List<string>()
+            Assignees = new List<string>(),
+            AssigneeIds = new List<string>()
         };
         newTagInput = "";
         newAssigneeInput = "";
         dueDate = null;
+        filteredMembers.Clear();
+    }
+
+    private async Task LoadOrganizationMembers()
+    {
+        if (string.IsNullOrEmpty(ProjectId)) return;
+
+        try
+        {
+            Console.WriteLine($"TaskCreateModal: Загрузка участников для проекта {ProjectId}");
+
+            // Проверяем кеш
+            if (_membersCache.ContainsKey(ProjectId))
+            {
+                availableMembers = _membersCache[ProjectId];
+                Console.WriteLine($"TaskCreateModal: Используем кешированных участников ({availableMembers.Count})");
+                StateHasChanged();
+                return;
+            }
+
+            // Получаем информацию о проекте чтобы найти организацию
+            var projects = await ApiService.GetUserProjectsAsync();
+            var project = projects.FirstOrDefault(p => p.Id == ProjectId);
+            
+            if (project?.OrganizationId != null)
+            {
+                availableMembers = await ApiService.GetOrganizationMembersAsync(project.OrganizationId);
+                
+                // Кешируем результат
+                _membersCache[ProjectId] = availableMembers;
+                
+                Console.WriteLine($"TaskCreateModal: Загружено {availableMembers.Count} участников организации");
+            }
+            else
+            {
+                Console.WriteLine($"TaskCreateModal: Не удалось найти организацию для проекта {ProjectId}");
+                availableMembers = new List<OrganizationMemberResponse>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TaskCreateModal: Ошибка загрузки участников: {ex.Message}");
+            availableMembers = new List<OrganizationMemberResponse>();
+        }
+        
+        StateHasChanged();
     }
 
     private async Task CloseModal()
@@ -182,7 +268,12 @@
             newTask.DueDate = dueDate.Value;
         }
 
+        // Заполняем имена исполнителей для совместимости
+        newTask.Assignees = GetAssigneeNames();
+
         newTask.ColumnId = "todo"; // Всегда добавляем в первую колонку
+
+        Console.WriteLine($"TaskCreateModal: Создаем задачу с исполнителями: {string.Join(", ", newTask.AssigneeIds)}");
 
         await OnTaskCreated.InvokeAsync(newTask);
         await CloseModal();
@@ -222,32 +313,90 @@
     // Методы для работы с исполнителями
     private void AddAssignee()
     {
-        if (!string.IsNullOrWhiteSpace(newAssigneeInput) && !newTask.Assignees.Contains(newAssigneeInput.Trim()))
+        if (string.IsNullOrWhiteSpace(newAssigneeInput)) return;
+
+        // Ищем точное совпадение по имени или email
+        var member = availableMembers.FirstOrDefault(m => 
+            string.Equals(m.Username, newAssigneeInput.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(m.Email, newAssigneeInput.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (member != null && !newTask.AssigneeIds.Contains(member.UserId))
         {
-            newTask.Assignees.Add(newAssigneeInput.Trim());
+            newTask.AssigneeIds.Add(member.UserId);
             newAssigneeInput = "";
+            filteredMembers.Clear();
+            StateHasChanged();
         }
     }
 
-    private void AddPresetAssignee(string assignee)
+    private void SelectMember(OrganizationMemberResponse member)
     {
-        if (!newTask.Assignees.Contains(assignee))
+        if (!newTask.AssigneeIds.Contains(member.UserId))
         {
-            newTask.Assignees.Add(assignee);
+            newTask.AssigneeIds.Add(member.UserId);
+            newAssigneeInput = "";
+            filteredMembers.Clear();
+            StateHasChanged();
         }
     }
 
-    private void RemoveAssignee(string assignee)
+    private void RemoveAssigneeById(string userId)
     {
-        newTask.Assignees.Remove(assignee);
+        newTask.AssigneeIds.Remove(userId);
+        StateHasChanged();
+    }
+
+    private void HandleAssigneeInput(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString() ?? "";
+        newAssigneeInput = input;
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            filteredMembers.Clear();
+        }
+        else
+        {
+            // Фильтруем участников по имени или email
+            filteredMembers = availableMembers
+                .Where(m => !newTask.AssigneeIds.Contains(m.UserId) && 
+                           (m.Username.Contains(input, StringComparison.OrdinalIgnoreCase) ||
+                            m.Email.Contains(input, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+        
+        StateHasChanged();
     }
 
     private async Task HandleAssigneeKeyPress(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            AddAssignee();
+            if (filteredMembers.Count == 1)
+            {
+                // Если есть один отфильтрованный результат - выбираем его
+                SelectMember(filteredMembers.First());
+            }
+            else
+            {
+                AddAssignee();
+            }
         }
+        else if (e.Key == "Escape")
+        {
+            newAssigneeInput = "";
+            filteredMembers.Clear();
+            StateHasChanged();
+        }
+    }
+
+    private List<string> GetAssigneeNames()
+    {
+        return newTask.AssigneeIds
+            .Select(id => availableMembers.FirstOrDefault(m => m.UserId == id)?.Username)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .Cast<string>()
+            .ToList();
     }
 
     // Стили для тегов
@@ -267,4 +416,18 @@
             _ => "bg-gray-100 text-gray-800"
         };
     }
+
+    // Метод для очистки кеша (можно вызывать при добавлении новых пользователей)
+    public static void ClearMembersCache(string? projectId = null)
+    {
+        if (projectId != null)
+        {
+            _membersCache.Remove(projectId);
+        }
+        else
+        {
+            _membersCache.Clear();
+        }
+    }
+} 
 } 

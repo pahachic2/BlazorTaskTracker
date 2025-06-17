@@ -1,7 +1,11 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Net;
+using TaskTracker.Models;
 using TaskTracker.Models.DTOs;
+using TaskTracker.Web.Services;
+using Microsoft.AspNetCore.Components;
 
 namespace TaskTracker.Web.Services;
 
@@ -11,12 +15,14 @@ public class ApiService : IApiService
     private readonly ILocalStorageService _localStorage;
     private readonly IToastService _toastService;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly NavigationManager _navigationManager;
 
-    public ApiService(HttpClient httpClient, ILocalStorageService localStorage, IToastService toastService)
+    public ApiService(HttpClient httpClient, ILocalStorageService localStorage, IToastService toastService, NavigationManager navigationManager)
     {
         _httpClient = httpClient;
         _localStorage = localStorage;
         _toastService = toastService;
+        _navigationManager = navigationManager;
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -264,7 +270,18 @@ public class ApiService : IApiService
         var response = await PostAsync<InviteUserRequest, InvitationResponse>($"/api/organizations/{organizationId}/invitations", request);
         if (response != null)
         {
-            _toastService.ShowSuccess("Приглашение отправлено!", $"Приглашение отправлено на {request.Email}");
+            if (response.UserWasRegistered && !response.EmailSent)
+            {
+                _toastService.ShowSuccess("Приглашение создано!", $"Пользователь {request.Email} увидит приглашение в интерфейсе при входе в систему");
+            }
+            else if (!response.UserWasRegistered && response.EmailSent)
+            {
+                _toastService.ShowSuccess("Приглашение отправлено!", $"Email с приглашением отправлен на {request.Email}");
+            }
+            else
+            {
+                _toastService.ShowSuccess("Приглашение отправлено!", $"Приглашение отправлено на {request.Email}");
+            }
         }
         return response;
     }
@@ -294,17 +311,31 @@ public class ApiService : IApiService
 
     public async Task<AcceptInvitationResponse?> AcceptInvitationAsync(AcceptInvitationRequest request)
     {
-        var response = await PostAsync<AcceptInvitationRequest, AcceptInvitationResponse>($"/api/invitations/{request.Token}/accept", request);
+        Console.WriteLine($"🌐 API_SERVICE: Начинаем принятие приглашения с токеном {request.Token[..10]}...");
+        Console.WriteLine($"🌐 API_SERVICE: URL: /api/organizations/invitations/{request.Token}/accept");
+        
+        // Endpoint теперь требует авторизации и находится в группе organizations
+        var response = await PostAsync<AcceptInvitationRequest, AcceptInvitationResponse>($"/api/organizations/invitations/{request.Token}/accept", request);
+        
+        Console.WriteLine($"🌐 API_SERVICE: Получили ответ. Response: {response != null}, Success: {response?.Success}");
+        
         if (response != null)
         {
+            Console.WriteLine($"🌐 API_SERVICE: Показываем toast успеха");
             _toastService.ShowSuccess("Приглашение принято!", $"Добро пожаловать в организацию {response.Organization?.Name ?? "организацию"}!");
         }
+        else
+        {
+            Console.WriteLine($"❌ API_SERVICE: Ответ пустой или null");
+        }
+        
         return response;
     }
 
     public async Task<bool> DeclineInvitationAsync(DeclineInvitationRequest request)
     {
-        var success = await PostAsync<DeclineInvitationRequest, object>($"/api/invitations/{request.Token}/decline", request) != null;
+        // Для публичных endpoints не устанавливаем заголовок авторизации
+        var success = await PostAsyncPublic<DeclineInvitationRequest, object>($"/api/invitations/{request.Token}/decline", request) != null;
         if (success)
         {
             _toastService.ShowInfo("Приглашение отклонено", "Вы отклонили приглашение в организацию");
@@ -312,33 +343,177 @@ public class ApiService : IApiService
         return success;
     }
 
+    // НОВЫЙ МЕТОД: Получить приглашения текущего пользователя
+    public async Task<List<InvitationResponse>> GetUserInvitationsAsync()
+    {
+        try
+        {
+            Console.WriteLine("🌐 API: Запрос приглашений пользователя");
+            await SetAuthorizationHeaderAsync();
+            
+            var result = await GetAsync<List<InvitationResponse>>("/api/organizations/user/invitations") ?? new List<InvitationResponse>();
+            Console.WriteLine($"🌐 API: Получено {result.Count} приглашений от сервера");
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ API: Ошибка при получении приглашений: {ex.Message}");
+            throw;
+        }
+    }
+
+    // Поиск и добавление пользователей
+
+    public async Task<UserSearchResponse?> SearchUserByEmailAsync(string organizationId, string email)
+    {
+        try
+        {
+            await SetAuthorizationHeaderAsync();
+            Console.WriteLine($"🔍 API CLIENT: Поиск пользователя по email: {email}");
+            
+            var response = await _httpClient.GetAsync($"/api/organizations/{organizationId}/search-user?email={Uri.EscapeDataString(email)}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializer.Deserialize<UserSearchResponse>(json, _jsonOptions);
+                Console.WriteLine($"✅ API CLIENT: Поиск завершен. Найден: {result?.Found}");
+                return result;
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ API CLIENT: Ошибка поиска пользователя: {response.StatusCode} - {errorContent}");
+                return new UserSearchResponse { Found = false, User = null };
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ API CLIENT: Исключение при поиске пользователя {email}: {ex.Message}");
+            return new UserSearchResponse { Found = false, User = null };
+        }
+    }
+
+    public async Task<bool> AddExistingUserAsync(string organizationId, string userId, OrganizationRole role = OrganizationRole.Member)
+    {
+        try
+        {
+            await SetAuthorizationHeaderAsync();
+            Console.WriteLine($"➕ API CLIENT: Добавление пользователя {userId} в организацию {organizationId}");
+            
+            var request = new { UserId = userId, Role = role };
+            var response = await PostAsync<object, object>($"/api/organizations/{organizationId}/add-user", request);
+            
+            if (response != null)
+            {
+                Console.WriteLine($"✅ API CLIENT: Пользователь {userId} успешно добавлен");
+                _toastService.ShowSuccess("Пользователь добавлен!", "Пользователь успешно добавлен в организацию");
+                return true;
+            }
+            
+            Console.WriteLine($"❌ API CLIENT: Не удалось добавить пользователя");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ API CLIENT: Исключение при добавлении пользователя {userId}: {ex.Message}");
+            _toastService.ShowError("Ошибка добавления", ex.Message);
+            return false;
+        }
+    }
+
     // Вспомогательные методы
     private async Task<T?> GetAsync<T>(string endpoint)
     {
         try
         {
+            Console.WriteLine($"🌐 API: GET запрос к {endpoint}");
+            Console.WriteLine($"🌐 API: BaseAddress = {_httpClient.BaseAddress}");
+            
+            // Проверяем наличие заголовка авторизации
+            if (_httpClient.DefaultRequestHeaders.Authorization != null)
+            {
+                Console.WriteLine($"🌐 API: Authorization header = {_httpClient.DefaultRequestHeaders.Authorization.Scheme} {_httpClient.DefaultRequestHeaders.Authorization.Parameter?[..10]}...");
+            }
+            else
+            {
+                Console.WriteLine("⚠️ API: Authorization header отсутствует!");
+            }
+
             var response = await _httpClient.GetAsync(endpoint);
+            
+            Console.WriteLine($"🌐 API: Статус ответа: {response.StatusCode}");
+            
             if (response.IsSuccessStatusCode)
             {
-                var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<T>(json, _jsonOptions);
+                var content = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"🌐 API: Получен ответ длиной {content.Length} символов");
+                var result = JsonSerializer.Deserialize<T>(content, _jsonOptions);
+                return result;
+            }
+            
+            var errorContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"❌ API: Ошибка {response.StatusCode}: {errorContent}");
+            
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                Console.WriteLine("🔒 API: Пользователь не авторизован - перенаправляем на логин");
+                _navigationManager.NavigateTo("/login");
+            }
+            
+            return default;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ API: Исключение при GET {endpoint}: {ex.Message}");
+            Console.WriteLine($"❌ API: Stack trace: {ex.StackTrace}");
+            throw;
+        }
+    }
+
+    private async Task<TResponse?> PostAsync<TRequest, TResponse>(string endpoint, TRequest data)
+    {
+        try
+        {
+            Console.WriteLine($"🌐 API: POST запрос к {endpoint}");
+            await SetAuthorizationHeaderAsync();
+            
+            var json = JsonSerializer.Serialize(data, _jsonOptions);
+            Console.WriteLine($"🌐 API: Данные для отправки: {json}");
+            
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            
+            Console.WriteLine($"🌐 API: Отправляем POST запрос...");
+            var response = await _httpClient.PostAsync(endpoint, content);
+            Console.WriteLine($"🌐 API: Получили ответ со статусом: {response.StatusCode}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var responseJson = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"🌐 API: Успешный ответ: {responseJson}");
+                var result = JsonSerializer.Deserialize<TResponse>(responseJson, _jsonOptions);
+                return result;
             }
             else
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                _toastService.ShowError("Ошибка загрузки данных", $"Код ошибки: {response.StatusCode}");
-                Console.WriteLine($"GET {endpoint} failed: {response.StatusCode} - {errorContent}");
+                Console.WriteLine($"❌ API: Ошибка {response.StatusCode}: {errorContent}");
+                _toastService.ShowError("Ошибка создания", $"Код ошибки: {response.StatusCode}");
+                Console.WriteLine($"POST {endpoint} failed: {response.StatusCode} - {errorContent}");
             }
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ API: Исключение в POST {endpoint}: {ex.Message}");
+            Console.WriteLine($"❌ API: Stack trace: {ex.StackTrace}");
             _toastService.ShowError("Ошибка соединения", "Не удалось подключиться к серверу");
-            Console.WriteLine($"Error in GET {endpoint}: {ex.Message}");
+            Console.WriteLine($"Error in POST {endpoint}: {ex.Message}");
         }
         return default;
     }
 
-    private async Task<TResponse?> PostAsync<TRequest, TResponse>(string endpoint, TRequest data)
+    private async Task<TResponse?> PostAsyncPublic<TRequest, TResponse>(string endpoint, TRequest data)
     {
         try
         {

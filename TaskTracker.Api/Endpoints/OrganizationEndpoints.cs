@@ -62,6 +62,18 @@ public static class OrganizationEndpoints
             .WithSummary("Получить список участников организации")
             .WithOpenApi();
 
+        // Поиск пользователя по email
+        group.MapGet("/{organizationId}/search-user", SearchUserByEmail)
+            .WithName("SearchUserByEmail")
+            .WithSummary("Поиск пользователя по email для добавления в организацию")
+            .WithOpenApi();
+
+        // Добавить существующего пользователя в организацию
+        group.MapPost("/{organizationId}/add-user", AddExistingUser)
+            .WithName("AddExistingUserToOrganization")
+            .WithSummary("Добавить существующего пользователя в организацию")
+            .WithOpenApi();
+
         // Пригласить пользователя в организацию
         group.MapPost("/{organizationId}/invitations", InviteUser)
             .WithName("InviteUserToOrganization")
@@ -80,6 +92,18 @@ public static class OrganizationEndpoints
             .WithSummary("Отозвать приглашение")
             .WithOpenApi();
 
+        // НОВЫЙ ENDPOINT: Получить приглашения текущего пользователя
+        group.MapGet("/user/invitations", GetUserInvitations)
+            .WithName("GetUserInvitations")
+            .WithSummary("Получить активные приглашения текущего пользователя")
+            .WithOpenApi();
+
+        // Принять приглашение (требует авторизации)
+        group.MapPost("/invitations/{token}/accept", AcceptInvitation)
+            .WithName("AcceptInvitation")
+            .WithSummary("Принять приглашение в организацию")
+            .WithOpenApi();
+
         // ПУБЛИЧНЫЕ ENDPOINTS ДЛЯ ОБРАБОТКИ ПРИГЛАШЕНИЙ (без авторизации)
         var publicGroup = endpoints.MapGroup("/api/invitations")
             .WithTags("Invitations");
@@ -88,12 +112,6 @@ public static class OrganizationEndpoints
         publicGroup.MapGet("/{token}", GetInvitationInfo)
             .WithName("GetInvitationInfo")
             .WithSummary("Получить информацию о приглашении")
-            .WithOpenApi();
-
-        // Принять приглашение
-        publicGroup.MapPost("/{token}/accept", AcceptInvitation)
-            .WithName("AcceptInvitation")
-            .WithSummary("Принять приглашение в организацию")
             .WithOpenApi();
 
         // Отклонить приглашение
@@ -334,13 +352,19 @@ public static class OrganizationEndpoints
     private static async Task<IResult> AcceptInvitation(
         string token,
         AcceptInvitationRequest request,
-        IOrganizationService organizationService)
+        IOrganizationService organizationService,
+        ClaimsPrincipal user)
     {
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
         if (string.IsNullOrWhiteSpace(token))
             return Results.BadRequest("Токен приглашения обязателен");
 
         // Токен берем из URL параметра, а не из body
         request.Token = token;
+        request.UserId = userId; // Устанавливаем ID пользователя из авторизации
 
         try
         {
@@ -368,6 +392,104 @@ public static class OrganizationEndpoints
 
         return Results.Ok(new { Message = "Приглашение успешно отклонено" });
     }
+
+    // НОВЫЕ МЕТОДЫ ДЛЯ ПОИСКА И ДОБАВЛЕНИЯ ПОЛЬЗОВАТЕЛЕЙ
+
+    private static async Task<IResult> SearchUserByEmail(
+        string organizationId,
+        string email,
+        IOrganizationService organizationService,
+        IUserService userService,
+        ClaimsPrincipal user)
+    {
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(email))
+            return Results.BadRequest("Email обязателен");
+
+        try
+        {
+            // Проверяем права на поиск пользователей (только владельцы и админы)
+            var hasPermission = await organizationService.HasOrganizationPermissionAsync(organizationId, userId, OrganizationRole.Admin);
+            if (!hasPermission)
+                return Results.Forbid();
+
+            // Ищем пользователя по email
+            var foundUser = await userService.GetUserByEmailAsync(email);
+            if (foundUser == null)
+                return Results.Ok(new UserSearchResponse { Found = false, User = null });
+
+            // Проверяем, не является ли пользователь уже участником организации
+            var members = await organizationService.GetOrganizationMembersAsync(organizationId, userId);
+            var isAlreadyMember = members.Any(m => m.UserId == foundUser.Id);
+
+            var userInfo = new UserSearchResult
+            {
+                UserId = foundUser.Id,
+                Username = foundUser.Username,
+                Email = foundUser.Email,
+                IsAlreadyMember = isAlreadyMember
+            };
+
+            return Results.Ok(new UserSearchResponse { Found = true, User = userInfo });
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest($"Ошибка поиска: {ex.Message}");
+        }
+    }
+
+    private static async Task<IResult> AddExistingUser(
+        string organizationId,
+        AddExistingUserRequest request,
+        IOrganizationService organizationService,
+        ClaimsPrincipal user)
+    {
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(organizationId))
+            return Results.BadRequest("UserId и OrganizationId обязательны");
+
+        try
+        {
+            // Проверяем права (только владельцы и админы)
+            var hasPermission = await organizationService.HasOrganizationPermissionAsync(organizationId, userId, OrganizationRole.Admin);
+            if (!hasPermission)
+                return Results.Forbid();
+
+            // Добавляем пользователя в организацию
+            var success = await organizationService.AddMemberToOrganizationAsync(organizationId, userId, request.UserId);
+            if (!success)
+                return Results.BadRequest("Не удалось добавить пользователя в организацию");
+
+            return Results.Ok(new { Message = "Пользователь успешно добавлен в организацию" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest($"Ошибка добавления: {ex.Message}");
+        }
+    }
+
+    // НОВЫЙ ENDPOINT: Получить приглашения текущего пользователя
+    private static async Task<IResult> GetUserInvitations(
+        IOrganizationService organizationService,
+        ClaimsPrincipal user)
+    {
+        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Results.Unauthorized();
+
+        var invitations = await organizationService.GetUserInvitationsAsync(userId);
+        return Results.Ok(invitations);
+    }
 }
 
 /// <summary>
@@ -376,4 +498,15 @@ public static class OrganizationEndpoints
 public class AddOrganizationMemberRequest
 {
     public string UserId { get; set; } = string.Empty;
-} 
+}
+
+/// <summary>
+/// DTO для добавления существующего пользователя в организацию
+/// </summary>
+public class AddExistingUserRequest
+{
+    public string UserId { get; set; } = string.Empty;
+    public OrganizationRole Role { get; set; } = OrganizationRole.Member;
+}
+
+ 

@@ -304,7 +304,8 @@ public class OrganizationService : IOrganizationService
             Token = Guid.NewGuid().ToString("N"), // Безопасный токен
             Status = InvitationStatus.Pending,
             CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddDays(7)
+            ExpiresAt = DateTime.UtcNow.AddDays(7),
+            UserWasRegistered = user != null // Запоминаем, был ли пользователь зарегистрирован
         };
 
         await _invitationDatabase.CreateAsync(invitation);
@@ -314,18 +315,34 @@ public class OrganizationService : IOrganizationService
         var invitedByUser = await _userDatabase.GetByIdAsync(userId);
         var invitedByName = invitedByUser?.Username ?? "Администратор";
 
-        // Отправляем email
-        var emailSent = await _emailService.SendInvitationEmailAsync(
-            request.Email, 
-            organization.Name, 
-            invitedByName, 
-            invitation.Token, 
-            request.Role);
-
-        if (!emailSent)
+        // Email отправляем ТОЛЬКО если пользователь НЕ зарегистрирован
+        bool emailSent = false;
+        
+        if (user == null)
         {
-            Console.WriteLine($"⚠️ ORG: Ошибка отправки email, но приглашение создано");
+            // Пользователь НЕ зарегистрирован - отправляем email для регистрации и принятия
+            Console.WriteLine($"📧 ORG: Пользователь {request.Email} не зарегистрирован, отправляем email");
+            emailSent = await _emailService.SendInvitationEmailAsync(
+                request.Email, 
+                organization.Name, 
+                invitedByName, 
+                invitation.Token, 
+                request.Role);
+
+            if (!emailSent)
+            {
+                Console.WriteLine($"⚠️ ORG: Ошибка отправки email для незарегистрированного пользователя");
+            }
         }
+        else
+        {
+            // Пользователь УЖЕ зарегистрирован - НЕ отправляем email, покажем в интерфейсе
+            Console.WriteLine($"👤 ORG: Пользователь {request.Email} уже зарегистрирован, приглашение будет показано в интерфейсе");
+        }
+
+        // Обновляем приглашение с информацией об отправке email
+        invitation.EmailSent = emailSent;
+        await _invitationDatabase.UpdateAsync(invitation.Id, invitation);
 
         return await MapInvitationToResponseAsync(invitation);
     }
@@ -412,15 +429,15 @@ public class OrganizationService : IOrganizationService
             return false;
         }
 
-        // Обновляем статус приглашения
-        invitation.Status = InvitationStatus.Revoked;
-        await _invitationDatabase.UpdateAsync(invitationId, invitation);
-
-        // Отправляем уведомление об отзыве
+        // Получаем информацию для уведомления перед удалением
         var organization = await _organizationDatabase.GetByIdAsync(invitation.OrganizationId);
         var revokedByUser = await _userDatabase.GetByIdAsync(userId);
         
-        if (organization != null && revokedByUser != null)
+        // Полностью удаляем приглашение из БД
+        await _invitationDatabase.DeleteAsync(invitationId);
+
+        // Отправляем уведомление об отзыве (только если пользователь НЕ зарегистрирован)
+        if (organization != null && revokedByUser != null && !invitation.UserWasRegistered)
         {
             await _emailService.SendInvitationRevokedEmailAsync(
                 invitation.Email, 
@@ -428,7 +445,7 @@ public class OrganizationService : IOrganizationService
                 revokedByUser.Username);
         }
 
-        Console.WriteLine($"✅ ORG: Приглашение {invitationId} отозвано");
+        Console.WriteLine($"✅ ORG: Приглашение {invitationId} удалено");
         return true;
     }
 
@@ -485,8 +502,39 @@ public class OrganizationService : IOrganizationService
         }
 
         // Проверяем, существует ли пользователь
-        var existingUsers = await _userDatabase.FindAsync(u => u.Email == invitation.Email && u.IsActive);
-        var user = existingUsers.FirstOrDefault();
+        User? user = null;
+        
+        // Если передан UserId (авторизованный пользователь), используем его
+        if (!string.IsNullOrEmpty(request.UserId))
+        {
+            Console.WriteLine($"✅ ORG: Обрабатываем приглашение для авторизованного пользователя {request.UserId}");
+            user = await _userDatabase.GetByIdAsync(request.UserId);
+            
+            if (user == null)
+            {
+                return new AcceptInvitationResponse 
+                { 
+                    Success = false, 
+                    Message = "Пользователь не найден" 
+                };
+            }
+            
+            // Проверяем, что email приглашения совпадает с email пользователя
+            if (user.Email != invitation.Email)
+            {
+                return new AcceptInvitationResponse 
+                { 
+                    Success = false, 
+                    Message = "Приглашение предназначено для другого email адреса" 
+                };
+            }
+        }
+        else
+        {
+            // Пользователь не авторизован - ищем по email или создаем нового
+            var existingUsers = await _userDatabase.FindAsync(u => u.Email == invitation.Email && u.IsActive);
+            user = existingUsers.FirstOrDefault();
+        }
         
         string? jwtToken = null;
 
@@ -624,7 +672,7 @@ public class OrganizationService : IOrganizationService
 
     // Вспомогательные методы
 
-    private async Task<bool> HasOrganizationPermissionAsync(string organizationId, string userId, OrganizationRole minimumRole)
+    public async Task<bool> HasOrganizationPermissionAsync(string organizationId, string userId, OrganizationRole minimumRole)
     {
         var userOrganizations = await _userOrganizationDatabase.FindAsync(
             uo => uo.OrganizationId == organizationId && uo.UserId == userId && uo.IsActive);
@@ -641,6 +689,37 @@ public class OrganizationService : IOrganizationService
             OrganizationRole.Owner => userOrganization.Role == OrganizationRole.Owner,
             _ => false
         };
+    }
+
+    // НОВЫЙ МЕТОД: Получить приглашения пользователя
+    public async Task<List<InvitationResponse>> GetUserInvitationsAsync(string userId)
+    {
+        Console.WriteLine($"📋 ORG: Получение приглашений для пользователя {userId}");
+
+        // Получаем пользователя чтобы узнать его email
+        var user = await _userDatabase.GetByIdAsync(userId);
+        if (user == null)
+        {
+            Console.WriteLine($"❌ ORG: Пользователь {userId} не найден");
+            return new List<InvitationResponse>();
+        }
+
+        // Ищем все активные приглашения для этого email
+        var invitations = await _invitationDatabase.FindAsync(
+            i => i.Email == user.Email && 
+                 i.Status == InvitationStatus.Pending &&
+                 i.ExpiresAt > DateTime.UtcNow);
+
+        var responses = new List<InvitationResponse>();
+
+        foreach (var invitation in invitations.OrderByDescending(i => i.CreatedAt))
+        {
+            var response = await MapInvitationToResponseAsync(invitation);
+            responses.Add(response);
+        }
+
+        Console.WriteLine($"✅ ORG: Найдено {responses.Count} активных приглашений для пользователя {user.Email}");
+        return responses;
     }
 
     private async Task<InvitationResponse> MapInvitationToResponseAsync(OrganizationInvitation invitation)
@@ -660,7 +739,10 @@ public class OrganizationService : IOrganizationService
             Status = invitation.Status,
             CreatedAt = invitation.CreatedAt,
             ExpiresAt = invitation.ExpiresAt,
-            AcceptedAt = invitation.AcceptedAt
+            AcceptedAt = invitation.AcceptedAt,
+            Token = invitation.Token,
+            EmailSent = invitation.EmailSent,
+            UserWasRegistered = invitation.UserWasRegistered
         };
     }
 } 

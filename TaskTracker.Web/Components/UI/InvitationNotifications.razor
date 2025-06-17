@@ -1,0 +1,271 @@
+@using TaskTracker.Models
+@using TaskTracker.Models.DTOs
+@inject IApiService ApiService
+@inject OrganizationInvitationService InvitationService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+@* Компонент уведомлений о приглашениях *@
+
+<div class="relative">
+    <!-- Кнопка уведомлений -->
+    <button @onclick="ToggleNotifications" 
+            class="relative p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-lg transition-colors">
+        
+        <!-- Иконка колокольчика -->
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+        </svg>
+        
+        <!-- Бейдж с количеством уведомлений -->
+        @if (invitations.Count > 0)
+        {
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full min-w-[1.25rem] h-5">
+                @invitations.Count
+            </span>
+        }
+    </button>
+
+    <!-- Выпадающее меню уведомлений -->
+    @if (showNotifications)
+    {
+        <div class="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 max-h-96 overflow-y-auto">
+            <div class="px-4 py-3 border-b border-gray-100">
+                <h3 class="text-sm font-semibold text-gray-900">Приглашения в организации</h3>
+                @if (invitations.Count > 0)
+                {
+                    <p class="text-xs text-gray-500 mt-1">У вас @invitations.Count новых приглашений</p>
+                }
+            </div>
+
+            @if (isLoading)
+            {
+                <!-- Загрузка -->
+                <div class="px-4 py-8 text-center">
+                    <svg class="animate-spin mx-auto h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-500">Загрузка приглашений...</p>
+                </div>
+            }
+            else if (invitations.Count == 0)
+            {
+                <!-- Пустое состояние -->
+                <div class="px-4 py-8 text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Нет приглашений</h3>
+                    <p class="mt-1 text-sm text-gray-500">У вас нет активных приглашений в организации</p>
+                </div>
+            }
+            else
+            {
+                <!-- Список приглашений -->
+                @foreach (var invitation in invitations)
+                {
+                    <div class="border-b border-gray-100 last:border-b-0">
+                        <div class="px-4 py-3 hover:bg-gray-50 transition-colors">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center space-x-2 mb-1">
+                                        <h4 class="text-sm font-medium text-gray-900 truncate">@invitation.OrganizationName</h4>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            @InvitationService.GetRoleDisplayName(invitation.Role)
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mb-2">
+                                        Приглашение от @invitation.InvitedByName
+                                    </p>
+                                    <p class="text-xs text-gray-400 mb-3">
+                                        Истекает @invitation.ExpiresAt.ToString("dd.MM.yyyy")
+                                    </p>
+                                    
+                                    <!-- Кнопки действий -->
+                                    <div class="flex space-x-2">
+                                        <button @onclick="@(() => AcceptInvitation(invitation))"
+                                                disabled="@isProcessing"
+                                                class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                            @if (isProcessing && processingInvitationId == invitation.Id)
+                                            {
+                                                <svg class="animate-spin -ml-1 mr-1 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                            }
+                                            Принять
+                                        </button>
+                                        <button @onclick="@(() => DeclineInvitation(invitation))"
+                                                disabled="@isProcessing"
+                                                class="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                            Отклонить
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<InvitationResponse> invitations = new();
+    private bool showNotifications = false;
+    private bool isLoading = false;
+    private bool isProcessing = false;
+    private string? processingInvitationId = null;
+    private Timer? refreshTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("🔔 NOTIFICATIONS: Инициализация компонента");
+        await LoadInvitations();
+        
+        // Автоматическое обновление каждые 30 секунд
+        refreshTimer = new Timer(async _ => await RefreshInvitations(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Обновляем приглашения при изменении параметров
+        await LoadInvitations();
+        await base.OnParametersSetAsync();
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+
+    private async Task ToggleNotifications()
+    {
+        showNotifications = !showNotifications;
+        if (showNotifications)
+        {
+            await LoadInvitations();
+        }
+    }
+
+    private async Task LoadInvitations()
+    {
+        if (isLoading) return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine("🔔 NOTIFICATIONS: Загружаем приглашения пользователя");
+            invitations = await ApiService.GetUserInvitationsAsync();
+            Console.WriteLine($"🔔 NOTIFICATIONS: Найдено {invitations.Count} приглашений");
+            
+            if (invitations.Count > 0)
+            {
+                Console.WriteLine("🔔 NOTIFICATIONS: Детали приглашений:");
+                foreach (var inv in invitations)
+                {
+                    Console.WriteLine($"  - {inv.OrganizationName} от {inv.InvitedByName} (статус: {inv.Status})");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ NOTIFICATIONS: Ошибка загрузки приглашений: {ex.Message}");
+            Console.WriteLine($"❌ NOTIFICATIONS: Stack trace: {ex.StackTrace}");
+            invitations = new List<InvitationResponse>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AcceptInvitation(InvitationResponse invitation)
+    {
+        if (isProcessing) return;
+
+        isProcessing = true;
+        processingInvitationId = invitation.Id;
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine($"✅ NOTIFICATIONS: Принимаем приглашение {invitation.Id}");
+            
+            var request = new AcceptInvitationRequest { Token = invitation.Token };
+            var result = await InvitationService.AcceptInvitationAsync(request);
+            
+            if (result?.Success == true)
+            {
+                // Удаляем приглашение из списка
+                invitations.Remove(invitation);
+                Console.WriteLine($"✅ NOTIFICATIONS: Приглашение {invitation.Id} принято");
+                
+                // Перезагружаем страницу для обновления списка организаций
+                await Task.Delay(1000); // Небольшая задержка для показа уведомления
+                NavigationManager.NavigateTo("/");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ NOTIFICATIONS: Ошибка принятия приглашения: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+            processingInvitationId = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeclineInvitation(InvitationResponse invitation)
+    {
+        if (isProcessing) return;
+
+        isProcessing = true;
+        processingInvitationId = invitation.Id;
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine($"❌ NOTIFICATIONS: Отклоняем приглашение {invitation.Id}");
+            
+            var success = await InvitationService.DeclineInvitationAsync(invitation.Token);
+            
+            if (success)
+            {
+                // Удаляем приглашение из списка
+                invitations.Remove(invitation);
+                Console.WriteLine($"✅ NOTIFICATIONS: Приглашение {invitation.Id} отклонено");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ NOTIFICATIONS: Ошибка отклонения приглашения: {ex.Message}");
+        }
+        finally
+        {
+            isProcessing = false;
+            processingInvitationId = null;
+            StateHasChanged();
+        }
+    }
+
+    // Публичный метод для обновления приглашений (можно вызывать из родительского компонента)
+    public async Task RefreshInvitations()
+    {
+        await LoadInvitations();
+    }
+
+    // Получить количество активных приглашений
+    public int GetInvitationCount() => invitations.Count;
+} 

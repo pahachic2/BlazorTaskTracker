@@ -2,6 +2,7 @@
 @using TaskTracker.Models
 @using TaskTracker.Models.DTOs
 @using TaskTracker.Web.Components.UI
+@using TaskTracker.Web.Components.Layout
 @inject NavigationManager NavigationManager
 @inject IApiService ApiService
 @inject OrganizationService OrganizationService
@@ -9,6 +10,11 @@
 @inject IJSRuntime JSRuntime
 
 <div class="w-screen h-screen flex bg-gray-50">
+    <!-- Фиксированный колокольчик уведомлений в правом верхнем углу -->
+    <div class="fixed top-4 right-4 z-50">
+        <NotificationBell />
+    </div>
+    
     <!-- Боковая панель с организациями и проектами -->
     <div class="sidebar-fixed bg-white shadow-lg border-r border-gray-200 @(isMobileMenuOpen ? "" : "sidebar-hidden lg:transform-none")">
         <ProjectSidebar Organizations="availableOrganizations"
@@ -153,9 +159,10 @@
 </div>
 
 <!-- Модальное окно создания задачи -->
-<TaskCreateModal IsVisible="isCreateModalVisible"
-    OnClose="HandleCloseCreateModal"
-    OnTaskCreated="HandleTaskCreated" />
+        <TaskCreateModal IsVisible="isCreateModalVisible" 
+                         ProjectId="@selectedProject?.Id"
+                         OnClose="HandleCloseCreateModal" 
+                         OnTaskCreated="HandleTaskCreated" />
 
 <!-- Модальное окно создания проекта -->
 <ProjectCreateModal IsVisible="isCreateProjectModalVisible"
@@ -378,6 +385,7 @@
             Title = task.Title,
             Description = task.Description,
             Tags = task.Tags,
+            AssigneeIds = task.AssigneeIds ?? new List<string>(),
             Assignees = task.Assignees,
             DueDate = task.DueDate,
             ColumnId = task.ColumnId,
@@ -690,8 +698,6 @@
             StateHasChanged();
         }
     }
-
-
 
     // Обработчик для удаления задачи
     private void HandleTaskDelete(KanbanTask task)
